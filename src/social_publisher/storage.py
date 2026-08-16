@@ -162,6 +162,25 @@ class Repository:
                 "asset": dict(asset) if asset else None,
             }
 
+    def list_posts(self, limit: int = 100, offset: int = 0) -> list[dict[str, object]]:
+        with self.connect() as connection:
+            posts = connection.execute(
+                """
+                SELECT * FROM posts
+                ORDER BY created_at DESC
+                LIMIT ? OFFSET ?
+                """,
+                (limit, offset),
+            ).fetchall()
+            result: list[dict[str, object]] = []
+            for post in posts:
+                jobs = connection.execute(
+                    "SELECT * FROM platform_jobs WHERE post_id = ? ORDER BY platform",
+                    (post["id"],),
+                ).fetchall()
+                result.append({"post": dict(post), "jobs": [dict(job) for job in jobs]})
+            return result
+
     def get_job_context(self, job_id: str) -> JobContext | None:
         with self.connect() as connection:
             row = connection.execute(

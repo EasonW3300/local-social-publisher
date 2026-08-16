@@ -8,7 +8,7 @@ from social_publisher.assets import AssetStore
 from social_publisher.domain import AssetUsage, Platform, PostDraft
 from social_publisher.rendering import CsdnRenderer, RendererRegistry, WeChatRenderer
 from social_publisher.storage import Repository
-from social_publisher.submissions import SubmissionService
+from social_publisher.submissions import DuplicateSubmissionError, SubmissionService
 
 
 def draft_for(platforms: tuple[Platform, ...] = (Platform.WECHAT, Platform.CSDN)) -> PostDraft:
@@ -86,6 +86,30 @@ class SubmissionServiceTests(unittest.TestCase):
                 {(row["platform"], row["content_type"]) for row in rows},
                 {("csdn", "text/markdown"), ("wechat", "text/html")},
             )
+
+    def test_duplicate_requires_confirmation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            image = root / "image.png"
+            image.write_bytes(b"image")
+            source = draft_for()
+            draft = PostDraft(
+                title=source.title,
+                markdown=source.markdown,
+                image_path=image,
+                platforms=source.platforms,
+                image_usage=source.image_usage,
+            )
+            repository = Repository(root / "publisher.sqlite3")
+            repository.initialize()
+            service = SubmissionService(repository, AssetStore(root / "assets"))
+            service.submit(draft)
+
+            with self.assertRaises(DuplicateSubmissionError):
+                service.submit(draft)
+
+            confirmed = service.submit(draft, confirm_duplicate=True)
+            self.assertIsNotNone(confirmed.post_id)
 
 
 if __name__ == "__main__":

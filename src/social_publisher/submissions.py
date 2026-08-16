@@ -5,9 +5,15 @@ import uuid
 from datetime import datetime, timezone
 
 from .assets import AssetStore
-from .domain import Platform, PostDraft
+from .domain import Platform, PostDraft, content_fingerprint
 from .rendering import RenderedContent, RendererRegistry
 from .storage import CreatedPost, Repository
+
+
+class DuplicateSubmissionError(ValueError):
+    def __init__(self, post_ids: list[str]) -> None:
+        super().__init__("matching content was submitted recently")
+        self.post_ids = post_ids
 
 
 class SubmissionService:
@@ -24,8 +30,12 @@ class SubmissionService:
     def preview(self, draft: PostDraft) -> dict[Platform, RenderedContent]:
         return self.renderers.render_selected(draft)
 
-    def submit(self, draft: PostDraft) -> CreatedPost:
+    def submit(self, draft: PostDraft, *, confirm_duplicate: bool = False) -> CreatedPost:
         asset = self.asset_store.add(draft.image_path)
+        fingerprint = content_fingerprint(draft.title, draft.markdown, asset.sha256)
+        duplicates = self.repository.find_recent_duplicates(fingerprint)
+        if duplicates and not confirm_duplicate:
+            raise DuplicateSubmissionError([row["id"] for row in duplicates])
         rendered = self.preview(draft)
         created = self.repository.create_post(draft, asset)
         self._save_rendered(created, rendered)
