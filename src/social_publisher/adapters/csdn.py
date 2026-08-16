@@ -147,6 +147,7 @@ class CsdnPlaywrightDriver(PersistentPlaywrightDriver):
         if IMAGE_URL_PLACEHOLDER in job.body:
             self._drop_image(page, job.image_path)
 
+        self._dismiss_informational_modals(page)
         self._click_first(
             page,
             (
