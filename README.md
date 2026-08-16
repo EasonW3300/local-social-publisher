@@ -20,8 +20,10 @@ triggering a local publication.
 
 ## Status
 
-Active development. The domain and persistence contracts are implemented first;
-publishing adapters and the frontend are added behind tested interfaces.
+Working beta. The local composer, persistence, scheduler, WeChat and CSDN
+adapters, guarded recovery flow, and cross-platform CI are implemented. Real
+account acceptance remains environment-specific; see the publishing guarantees
+below and the [architecture](docs/architecture.md).
 
 ## Development
 
