@@ -58,9 +58,15 @@ class CsdnPlaywrightDriver(PersistentPlaywrightDriver):
         if "passport.csdn.net" in page.url or "login" in page.url.lower():
             raise LoginRequired("请在已打开的 CSDN 专用浏览器中登录，然后重试")
 
+        page.wait_for_selector(
+            ".article-bar__title-display", state="visible", timeout=15_000
+        )
+        page.locator(".article-bar__title-display").click()
+
         self._fill_first(
             page,
             (
+                "input.article-bar__title--input",
                 "textarea.article-bar__title",
                 "input.article-bar__title",
                 "textarea[placeholder*='文章标题']",
@@ -73,6 +79,7 @@ class CsdnPlaywrightDriver(PersistentPlaywrightDriver):
         self._fill_first(
             page,
             (
+                "pre.editor__inner[contenteditable='true']",
                 ".cledit-section textarea",
                 "textarea.editor__inner",
                 "textarea[placeholder*='Markdown']",
@@ -82,11 +89,18 @@ class CsdnPlaywrightDriver(PersistentPlaywrightDriver):
         )
 
         if IMAGE_URL_PLACEHOLDER in job.body:
-            image_input = page.locator("input[type='file'][accept*='image']")
-            if not image_input.count():
+            image_button = page.locator("button[data-title^='图片']")
+            if not image_button.count() or not image_button.first.is_visible():
                 raise UserActionRequired("CSDN 图片上传控件发生变化，请人工上传图片并保存草稿")
-            image_input.first.set_input_files(str(job.image_path))
-            page.wait_for_timeout(1500)
+            try:
+                with page.expect_file_chooser(timeout=5_000) as chooser:
+                    image_button.first.click()
+                chooser.value.set_files(str(job.image_path))
+                page.wait_for_timeout(2_500)
+            except Exception as error:
+                raise UserActionRequired(
+                    "CSDN 图片选择器未能完成上传，请人工上传图片后继续"
+                ) from error
 
         self._click_first(
             page,

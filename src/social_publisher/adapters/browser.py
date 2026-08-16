@@ -92,9 +92,20 @@ class PersistentPlaywrightDriver:
         cls._first(page, selectors).click()
 
     def close(self) -> None:
-        if self._context is not None:
-            self._context.close()
-            self._context = None
-        if self._playwright is not None:
-            self._playwright.stop()
-            self._playwright = None
+        try:
+            if self._context is not None:
+                try:
+                    self._context.close()
+                except Exception:
+                    # Closing the visible browser window disconnects Playwright first.
+                    pass
+                finally:
+                    self._context = None
+        finally:
+            if self._playwright is not None:
+                try:
+                    self._playwright.stop()
+                except Exception:
+                    pass
+                finally:
+                    self._playwright = None
