@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Annotated
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from starlette.staticfiles import StaticFiles
 
 from .assets import AssetStore
 from .domain import AssetUsage, Platform, PostDraft
@@ -58,6 +59,7 @@ class WeChatSettingsResponse(BaseModel):
 
 
 DispatchJobs = Callable[[list[str]], None]
+OpenBrowser = Callable[[], None]
 
 
 def create_app(
@@ -65,6 +67,9 @@ def create_app(
     *,
     dispatch_jobs: DispatchJobs | None = None,
     settings_service: SettingsService | None = None,
+    open_csdn_login: OpenBrowser | None = None,
+    open_wechat_login: OpenBrowser | None = None,
+    frontend_dir: Path | None = None,
 ) -> FastAPI:
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -78,9 +83,9 @@ def create_app(
     app.state.submission_service = service
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://127.0.0.1", "http://localhost"],
+        allow_origin_regex=r"^http://(127\.0\.0\.1|localhost)(:\d+)?$",
         allow_credentials=False,
-        allow_methods=["GET", "POST"],
+        allow_methods=["GET", "POST", "PUT"],
         allow_headers=["Content-Type", "X-Local-Publisher-Token"],
     )
 
@@ -113,6 +118,20 @@ def create_app(
                 official_configured=current.official_configured,
                 browser_fallback_enabled=current.browser_fallback_enabled,
             )
+
+    if open_csdn_login is not None:
+
+        @app.post("/api/browser/csdn/login", status_code=status.HTTP_202_ACCEPTED)
+        def start_csdn_login(background_tasks: BackgroundTasks) -> dict[str, str]:
+            background_tasks.add_task(open_csdn_login)
+            return {"status": "opening"}
+
+    if open_wechat_login is not None:
+
+        @app.post("/api/browser/wechat/login", status_code=status.HTTP_202_ACCEPTED)
+        def start_wechat_login(background_tasks: BackgroundTasks) -> dict[str, str]:
+            background_tasks.add_task(open_wechat_login)
+            return {"status": "opening"}
 
     @app.post("/api/previews", response_model=PreviewResponse)
     def preview(
@@ -210,6 +229,9 @@ def create_app(
         if result is None:
             raise HTTPException(status_code=404, detail="submission not found")
         return result
+
+    if frontend_dir is not None and Path(frontend_dir).is_dir():
+        app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
     return app
 

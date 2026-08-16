@@ -46,6 +46,9 @@ class CsdnPlaywrightDriver(PersistentPlaywrightDriver):
     def __init__(self, profile_path: Path) -> None:
         super().__init__(profile_path)
 
+    def open_login(self) -> None:
+        self._page(self.EDITOR_URL)
+
     def create_draft(self, job: JobContext) -> BrowserPublishReceipt:
         page = self._page(self.EDITOR_URL)
         if "passport.csdn.net" in page.url or "login" in page.url.lower():

@@ -45,6 +45,9 @@ class WeChatPlaywrightDriver(PersistentPlaywrightDriver):
     def __init__(self, profile_path: Path) -> None:
         super().__init__(profile_path)
 
+    def open_login(self) -> None:
+        self._page(self.HOME_URL)
+
     def publish_article(self, job: JobContext) -> BrowserPublishReceipt:
         page = self._page(self.HOME_URL)
         if page.locator("text=扫码登录").count() or "login" in page.url.lower():

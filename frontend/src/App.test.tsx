@@ -88,6 +88,9 @@ describe('App', () => {
             : [],
         })
       }
+      if (url.endsWith('/api/settings/wechat')) {
+        return response({ app_id: '', secret_configured: false, official_configured: false, browser_fallback_enabled: false })
+      }
       throw new Error(url)
     })
     render(<App />)
@@ -99,5 +102,32 @@ describe('App', () => {
 
     expect(await screen.findByText('发布任务已创建，正在后台执行。')).toBeInTheDocument()
     expect(await screen.findByText('测试')).toBeInTheDocument()
+  })
+
+  it('saves WeChat credentials without rendering the secret back', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url.endsWith('/api/submissions')) return response({ items: [] })
+      if (url.endsWith('/api/settings/wechat') && init?.method === 'PUT') {
+        return response({ app_id: 'wx-app', secret_configured: true, official_configured: true, browser_fallback_enabled: true })
+      }
+      if (url.endsWith('/api/settings/wechat')) {
+        return response({ app_id: '', secret_configured: false, official_configured: false, browser_fallback_enabled: false })
+      }
+      throw new Error(url)
+    })
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: '账号设置' }))
+    await user.type(screen.getByLabelText('微信公众号 AppID'), 'wx-app')
+    await user.type(screen.getByLabelText('微信公众号 AppSecret'), 'top-secret')
+    await user.click(screen.getByText('官方接口无权限时启用浏览器降级'))
+    await user.click(screen.getByRole('button', { name: '安全保存' }))
+
+    expect(await screen.findByText('账号设置已安全保存。')).toBeInTheDocument()
+    const request = fetchMock.mock.calls.find(([, init]) => init?.method === 'PUT')
+    expect(request?.[1]?.body).toContain('top-secret')
+    expect(screen.queryByDisplayValue('top-secret')).not.toBeInTheDocument()
   })
 })

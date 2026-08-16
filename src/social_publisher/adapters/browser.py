@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
@@ -53,11 +54,19 @@ class PersistentPlaywrightDriver:
                 raise RuntimeError("Playwright is not installed") from error
             self.profile_path.mkdir(parents=True, exist_ok=True)
             self._playwright = sync_playwright().start()
-            self._context = self._playwright.chromium.launch_persistent_context(
-                str(self.profile_path),
-                headless=False,
-                viewport={"width": 1440, "height": 1000},
-            )
+            options = {
+                "headless": False,
+                "viewport": {"width": 1440, "height": 1000},
+            }
+            channel = os.environ.get("LOCAL_SOCIAL_PUBLISHER_BROWSER_CHANNEL", "chrome")
+            try:
+                self._context = self._playwright.chromium.launch_persistent_context(
+                    str(self.profile_path), channel=channel, **options
+                )
+            except Exception:
+                self._context = self._playwright.chromium.launch_persistent_context(
+                    str(self.profile_path), **options
+                )
         page = self._context.pages[0] if self._context.pages else self._context.new_page()
         page.goto(start_url, wait_until="domcontentloaded")
         page.bring_to_front()

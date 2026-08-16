@@ -65,6 +65,12 @@ class PublisherRuntime:
     def dispatch_future(self, job_id: str) -> Future:
         return self.executor.submit(self.runner.run, job_id)
 
+    def open_csdn_login(self) -> None:
+        self.executor.submit(self.csdn_driver.open_login)
+
+    def open_wechat_login(self) -> None:
+        self.executor.submit(self.wechat_driver.open_login)
+
     def _tick(self) -> None:
         self.executor.submit(self.scheduler_core.recover_and_run)
 

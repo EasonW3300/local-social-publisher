@@ -29,10 +29,19 @@ def main() -> None:
 
     runtime = PublisherRuntime(default_data_dir())
     runtime.start()
+    frontend_override = os.environ.get("LOCAL_SOCIAL_PUBLISHER_FRONTEND")
+    frontend_dir = (
+        Path(frontend_override).expanduser()
+        if frontend_override
+        else Path(__file__).resolve().parents[2] / "frontend" / "dist"
+    )
     app = create_app(
         runtime.data_dir,
         dispatch_jobs=runtime.dispatch,
         settings_service=runtime.settings,
+        open_csdn_login=runtime.open_csdn_login,
+        open_wechat_login=runtime.open_wechat_login,
+        frontend_dir=frontend_dir,
     )
     if not args.no_browser:
         webbrowser.open(f"http://127.0.0.1:{args.port}")

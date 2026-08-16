@@ -1,4 +1,10 @@
-import type { AssetUsage, Platform, PreviewItem, SubmissionListItem } from './types'
+import type {
+  AssetUsage,
+  Platform,
+  PreviewItem,
+  SubmissionListItem,
+  WeChatSettings,
+} from './types'
 
 export interface PublishForm {
   title: string
@@ -67,4 +73,28 @@ export async function submit(values: PublishForm, confirmDuplicate = false): Pro
 export async function listSubmissions(): Promise<SubmissionListItem[]> {
   const response = await checked(await fetch('/api/submissions'))
   return (await response.json()).items
+}
+
+export async function getWeChatSettings(): Promise<WeChatSettings> {
+  const response = await checked(await fetch('/api/settings/wechat'))
+  return response.json()
+}
+
+export async function saveWeChatSettings(values: {
+  app_id: string
+  app_secret?: string
+  browser_fallback_enabled: boolean
+}): Promise<WeChatSettings> {
+  const response = await checked(
+    await fetch('/api/settings/wechat', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(values),
+    }),
+  )
+  return response.json()
+}
+
+export async function openPlatformLogin(platform: Platform): Promise<void> {
+  await checked(await fetch(`/api/browser/${platform}/login`, { method: 'POST' }))
 }

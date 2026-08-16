@@ -28,3 +28,10 @@ export interface SubmissionListItem {
   }
   jobs: PlatformJob[]
 }
+
+export interface WeChatSettings {
+  app_id: string
+  secret_configured: boolean
+  official_configured: boolean
+  browser_fallback_enabled: boolean
+}

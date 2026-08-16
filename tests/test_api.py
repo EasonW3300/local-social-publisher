@@ -129,6 +129,31 @@ class ApiTests(unittest.TestCase):
             self.assertNotIn("app_secret", updated.json())
             self.assertTrue(updated.json()["official_configured"])
 
+    def test_browser_login_endpoint_dispatches_visible_profile(self) -> None:
+        opened: list[str] = []
+        data_dir = Path(self.temp.name) / "browser-app"
+        with TestClient(
+            create_app(
+                data_dir,
+                open_csdn_login=lambda: opened.append("csdn"),
+                open_wechat_login=lambda: opened.append("wechat"),
+            )
+        ) as client:
+            self.assertEqual(client.post("/api/browser/csdn/login").status_code, 202)
+            self.assertEqual(client.post("/api/browser/wechat/login").status_code, 202)
+        self.assertEqual(opened, ["csdn", "wechat"])
+
+    def test_built_frontend_can_be_served_from_loopback_app(self) -> None:
+        frontend = Path(self.temp.name) / "static"
+        frontend.mkdir()
+        (frontend / "index.html").write_text("<h1>Publisher UI</h1>")
+        with TestClient(
+            create_app(Path(self.temp.name) / "static-app", frontend_dir=frontend)
+        ) as client:
+            response = client.get("/")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Publisher UI", response.text)
+
 
 if __name__ == "__main__":
     unittest.main()

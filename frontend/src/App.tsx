@@ -1,7 +1,22 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 
-import { ApiError, listSubmissions, preview, submit, type PublishForm } from './api'
-import type { AssetUsage, Platform, PreviewItem, SubmissionListItem } from './types'
+import {
+  ApiError,
+  getWeChatSettings,
+  listSubmissions,
+  openPlatformLogin,
+  preview,
+  saveWeChatSettings,
+  submit,
+  type PublishForm,
+} from './api'
+import type {
+  AssetUsage,
+  Platform,
+  PreviewItem,
+  SubmissionListItem,
+  WeChatSettings,
+} from './types'
 import './styles.css'
 
 const PLATFORM_META: Record<Platform, { name: string; badge: string; detail: string }> = {
@@ -35,6 +50,11 @@ export default function App() {
   const [records, setRecords] = useState<SubmissionListItem[]>([])
   const [busy, setBusy] = useState<'preview' | 'publish' | null>(null)
   const [message, setMessage] = useState('')
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [wechatSettings, setWechatSettings] = useState<WeChatSettings | null>(null)
+  const [wechatAppId, setWechatAppId] = useState('')
+  const [wechatSecret, setWechatSecret] = useState('')
+  const [browserFallback, setBrowserFallback] = useState(false)
 
   const values = useMemo<PublishForm | null>(() => {
     if (!image) return null
@@ -54,6 +74,16 @@ export default function App() {
     const timer = window.setInterval(() => void refresh(), 3000)
     return () => window.clearInterval(timer)
   }, [refresh])
+
+  useEffect(() => {
+    void getWeChatSettings()
+      .then((current) => {
+        setWechatSettings(current)
+        setWechatAppId(current.app_id)
+        setBrowserFallback(current.browser_fallback_enabled)
+      })
+      .catch(() => undefined)
+  }, [])
 
   useEffect(() => setPreviews([]), [title, markdown, image, platforms, imageUsage, scheduledAt])
 
@@ -119,6 +149,32 @@ export default function App() {
     }
   }
 
+  async function handleSaveSettings(event: FormEvent) {
+    event.preventDefault()
+    try {
+      const current = await saveWeChatSettings({
+        app_id: wechatAppId,
+        app_secret: wechatSecret || undefined,
+        browser_fallback_enabled: browserFallback,
+      })
+      setWechatSettings(current)
+      setWechatSecret('')
+      setMessage('账号设置已安全保存。')
+      setSettingsOpen(false)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '账号设置保存失败')
+    }
+  }
+
+  async function openLogin(platform: Platform) {
+    try {
+      await openPlatformLogin(platform)
+      setMessage(`正在打开${PLATFORM_META[platform].name}专用登录窗口。`)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '无法打开登录窗口')
+    }
+  }
+
   return (
     <main>
       <header className="masthead">
@@ -127,8 +183,33 @@ export default function App() {
           <h1>把一次创作，稳稳送达。</h1>
           <p className="lead">本地运行、逐平台追踪。微信直发，CSDN 草稿终审。</p>
         </div>
-        <div className="privacy-pill"><span /> 凭证与内容仅保存在本机</div>
+        <div className="header-tools">
+          <div className="privacy-pill"><span /> 凭证与内容仅保存在本机</div>
+          <button className="settings-button" type="button" onClick={() => setSettingsOpen((value) => !value)}>
+            账号设置
+          </button>
+        </div>
       </header>
+
+      {settingsOpen && (
+        <form className="settings-panel" onSubmit={handleSaveSettings}>
+          <div className="settings-copy">
+            <p>ACCOUNT SETUP</p>
+            <h2>平台账号</h2>
+            <span>密钥写入操作系统凭证库，页面和 SQLite 均不会返回明文。</span>
+          </div>
+          <div className="settings-fields">
+            <label><span>微信公众号 AppID</span><input aria-label="微信公众号 AppID" value={wechatAppId} onChange={(event) => setWechatAppId(event.target.value)} placeholder="wx…" /></label>
+            <label><span>AppSecret {wechatSettings?.secret_configured && <b>已配置</b>}</span><input aria-label="微信公众号 AppSecret" type="password" value={wechatSecret} onChange={(event) => setWechatSecret(event.target.value)} placeholder={wechatSettings?.secret_configured ? '留空则保持不变' : '输入 AppSecret'} /></label>
+            <label className="fallback-check"><input type="checkbox" checked={browserFallback} onChange={(event) => setBrowserFallback(event.target.checked)} />官方接口无权限时启用浏览器降级</label>
+          </div>
+          <div className="settings-actions">
+            <button type="button" onClick={() => void openLogin('wechat')}>打开微信登录</button>
+            <button type="button" onClick={() => void openLogin('csdn')}>打开 CSDN 登录</button>
+            <button className="save-settings" type="submit">安全保存</button>
+          </div>
+        </form>
+      )}
 
       <section className="workspace">
         <form className="composer" onSubmit={handlePublish}>
