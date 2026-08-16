@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import mimetypes
 import re
 from pathlib import Path
 
@@ -67,6 +69,45 @@ class CsdnPlaywrightDriver(PersistentPlaywrightDriver):
                     candidate.click()
                     page.wait_for_timeout(250)
 
+    @staticmethod
+    def _drop_image(page, image_path: Path) -> None:
+        editor = page.locator("pre.editor__inner[contenteditable='true']")
+        try:
+            payload = {
+                "data": base64.b64encode(image_path.read_bytes()).decode("ascii"),
+                "name": image_path.name,
+                "type": mimetypes.guess_type(image_path.name)[0] or "application/octet-stream",
+            }
+            editor.evaluate(
+                """(element, payload) => {
+                    const binary = atob(payload.data);
+                    const bytes = new Uint8Array(binary.length);
+                    for (let index = 0; index < binary.length; index += 1) {
+                        bytes[index] = binary.charCodeAt(index);
+                    }
+                    const file = new File([bytes], payload.name, {type: payload.type});
+                    const transfer = new DataTransfer();
+                    transfer.items.add(file);
+                    element.focus();
+                    for (const eventName of ['dragenter', 'dragover', 'drop']) {
+                        element.dispatchEvent(new DragEvent(eventName, {
+                            bubbles: true,
+                            cancelable: true,
+                            dataTransfer: transfer,
+                        }));
+                    }
+                }""",
+                payload,
+            )
+            page.wait_for_timeout(7_000)
+            content = editor.inner_text()
+        except Exception as error:
+            raise UserActionRequired(
+                "CSDN 图片拖拽上传失败，请人工上传图片后继续"
+            ) from error
+        if not re.search(r"https://(?:i-blog|img-blog)\.csdnimg\.cn/", content):
+            raise UserActionRequired("CSDN 未返回可验证的图片链接，请人工检查上传状态")
+
     def create_draft(self, job: JobContext) -> BrowserPublishReceipt:
         page = self._page(self.EDITOR_URL)
         if "passport.csdn.net" in page.url or "login" in page.url.lower():
@@ -104,18 +145,7 @@ class CsdnPlaywrightDriver(PersistentPlaywrightDriver):
         )
 
         if IMAGE_URL_PLACEHOLDER in job.body:
-            image_button = page.locator("button[data-title^='图片']")
-            if not image_button.count() or not image_button.first.is_visible():
-                raise UserActionRequired("CSDN 图片上传控件发生变化，请人工上传图片并保存草稿")
-            try:
-                with page.expect_file_chooser(timeout=5_000) as chooser:
-                    image_button.first.click()
-                chooser.value.set_files(str(job.image_path))
-                page.wait_for_timeout(2_500)
-            except Exception as error:
-                raise UserActionRequired(
-                    "CSDN 图片选择器未能完成上传，请人工上传图片后继续"
-                ) from error
+            self._drop_image(page, job.image_path)
 
         self._click_first(
             page,

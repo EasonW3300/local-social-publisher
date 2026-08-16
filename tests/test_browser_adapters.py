@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -91,21 +92,17 @@ class BrowserAdapterTests(unittest.TestCase):
         image_locator.count.return_value = 1
         image_locator.first = image_locator
         image_locator.is_visible.return_value = True
-        chooser = MagicMock()
-        chooser_context = MagicMock()
-        chooser_context.__enter__.return_value = chooser_context
-        chooser_context.value = chooser
         page = MagicMock()
         page.url = "https://editor.csdn.net/md/?articleId=123456"
         page.locator.side_effect = lambda selector: (
             title_locator if selector == ".article-bar__title-display" else image_locator
         )
-        page.expect_file_chooser.return_value = chooser_context
 
         driver = CsdnPlaywrightDriver(Path("profile"))
         driver._page = MagicMock(return_value=page)
         driver._fill_first = MagicMock()
         driver._click_first = MagicMock()
+        driver._drop_image = MagicMock()
         upload_job = replace(
             job("csdn"),
             body=f"![A title]({IMAGE_URL_PLACEHOLDER})\n\nbody",
@@ -118,8 +115,26 @@ class BrowserAdapterTests(unittest.TestCase):
         body_fill_selectors = driver._fill_first.call_args_list[1].args[1]
         self.assertEqual(first_fill_selectors[0], "input.article-bar__title--input")
         self.assertEqual(body_fill_selectors[0], "pre.editor__inner[contenteditable='true']")
-        chooser.set_files.assert_called_once_with("image.png")
+        driver._drop_image.assert_called_once_with(page, Path("image.png"))
         self.assertEqual(receipt.remote_id, "123456")
+
+    def test_csdn_drag_drop_requires_a_verified_platform_image_url(self) -> None:
+        page = MagicMock()
+        editor = MagicMock()
+        editor.inner_text.return_value = (
+            "![image](https://i-blog.csdnimg.cn/direct/uploaded.png)\n\nbody"
+        )
+        page.locator.return_value = editor
+        with tempfile.TemporaryDirectory() as temporary:
+            image_path = Path(temporary) / "image.png"
+            image_path.write_bytes(b"test-image")
+
+            CsdnPlaywrightDriver._drop_image(page, image_path)
+
+        editor.evaluate.assert_called_once()
+        payload = editor.evaluate.call_args.args[1]
+        self.assertEqual(payload["name"], "image.png")
+        self.assertEqual(payload["type"], "image/png")
 
     def test_csdn_draft_is_success_for_the_csdn_delivery_contract(self) -> None:
         adapter = CsdnAdapter(
