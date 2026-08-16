@@ -105,6 +105,21 @@ class JobRunnerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not runnable"):
             runner.run(self.job_id)
 
+    def test_waiting_user_message_is_visible_in_persisted_job(self) -> None:
+        adapter = FakeAdapter(
+            [PublishResult(JobStatus.WAITING_USER, message="complete account setup")]
+        )
+        runner = JobRunner(self.repository, (adapter,))
+
+        self.assertEqual(runner.run(self.job_id), JobStatus.WAITING_USER)
+
+        bundle = self.repository.get_post(self.created.post_id)
+        assert bundle is not None
+        self.assertEqual(
+            bundle["jobs"][0]["error_message"],  # type: ignore[index]
+            "complete account setup",
+        )
+
     def test_pending_remote_is_polled_without_incrementing_publish_attempts(self) -> None:
         adapter = FakeAdapter(
             [

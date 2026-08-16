@@ -108,6 +108,47 @@ class CsdnPlaywrightDriver(PersistentPlaywrightDriver):
         if not re.search(r"https://(?:i-blog|img-blog)\.csdnimg\.cn/", content):
             raise UserActionRequired("CSDN 未返回可验证的图片链接，请人工检查上传状态")
 
+    def _save_draft(self, page) -> BrowserPublishReceipt:
+        try:
+            with page.expect_response(
+                lambda response: "/mdeditor/saveArticle" in response.url,
+                timeout=15_000,
+            ) as pending_response:
+                self._click_first(
+                    page,
+                    (
+                        "button.btn.btn-save",
+                        "button[data-title='保存草稿']",
+                        "button:has-text('保存草稿')",
+                    ),
+                )
+            response = pending_response.value
+            payload = response.json()
+        except Exception as error:
+            raise BrowserSubmissionUnknown(
+                "CSDN 已点击保存，但未收到可验证的保存响应"
+            ) from error
+
+        code = int(payload.get("code", response.status)) if isinstance(payload, dict) else 0
+        if response.status >= 400 or code not in {0, 200}:
+            message = str(payload.get("msg", "CSDN 拒绝保存草稿"))
+            if "博主不存在" in message:
+                raise UserActionRequired(
+                    "CSDN 账号尚未开通博客空间，请先在 CSDN 完成博主开通后继续"
+                )
+            raise UserActionRequired(f"CSDN 未保存草稿：{message}")
+
+        article_id = _extract_article_id(payload)
+        if article_id is None:
+            match = re.search(r"(?:articleId=|/)(\d{4,})(?:\D|$)", page.url)
+            article_id = match.group(1) if match else None
+        if article_id is None:
+            raise BrowserSubmissionUnknown("CSDN 保存成功，但响应中没有可验证的文章 ID")
+        return BrowserPublishReceipt(
+            remote_id=article_id,
+            result_url=f"https://editor.csdn.net/md/?articleId={article_id}",
+        )
+
     def create_draft(self, job: JobContext) -> BrowserPublishReceipt:
         page = self._page(self.EDITOR_URL)
         if "passport.csdn.net" in page.url or "login" in page.url.lower():
@@ -148,19 +189,16 @@ class CsdnPlaywrightDriver(PersistentPlaywrightDriver):
             self._drop_image(page, job.image_path)
 
         self._dismiss_informational_modals(page)
-        self._click_first(
-            page,
-            (
-                "button:has-text('保存草稿')",
-                "button:has-text('保存')",
-                "text=保存草稿",
-            ),
-        )
-        page.wait_for_timeout(1200)
-        if "editor.csdn.net" not in page.url:
-            raise BrowserSubmissionUnknown("CSDN 已点击保存，但无法确认草稿编辑地址")
-        match = re.search(r"(?:articleId=|/)(\d{4,})(?:\D|$)", page.url)
-        return BrowserPublishReceipt(
-            remote_id=match.group(1) if match else None,
-            result_url=page.url,
-        )
+        return self._save_draft(page)
+
+
+def _extract_article_id(payload: object) -> str | None:
+    if isinstance(payload, dict):
+        for key in ("articleId", "article_id", "id"):
+            value = payload.get(key)
+            if isinstance(value, (str, int)) and str(value).isdigit():
+                return str(value)
+        return _extract_article_id(payload.get("data"))
+    if isinstance(payload, (str, int)) and str(payload).isdigit():
+        return str(payload)
+    return None

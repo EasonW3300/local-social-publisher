@@ -135,6 +135,9 @@ class JobRunner:
             else None,
             remote_id=result.remote_id,
             result_url=result.result_url,
+            error_message=result.message
+            if result.status is JobStatus.WAITING_USER
+            else None,
             event_details={"message": result.message} if result.message else None,
         )
         return result.status

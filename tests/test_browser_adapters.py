@@ -103,6 +103,11 @@ class BrowserAdapterTests(unittest.TestCase):
         driver._fill_first = MagicMock()
         driver._click_first = MagicMock()
         driver._drop_image = MagicMock()
+        driver._save_draft = MagicMock(
+            return_value=BrowserPublishReceipt(
+                "123456", "https://editor.csdn.net/md/?articleId=123456"
+            )
+        )
         upload_job = replace(
             job("csdn"),
             body=f"![A title]({IMAGE_URL_PLACEHOLDER})\n\nbody",
@@ -117,6 +122,39 @@ class BrowserAdapterTests(unittest.TestCase):
         self.assertEqual(body_fill_selectors[0], "pre.editor__inner[contenteditable='true']")
         driver._drop_image.assert_called_once_with(page, Path("image.png"))
         self.assertEqual(receipt.remote_id, "123456")
+
+    def test_csdn_save_requires_success_response_and_article_id(self) -> None:
+        response = MagicMock(status=200)
+        response.json.return_value = {"code": 200, "data": {"articleId": 123456}}
+        pending = MagicMock()
+        pending.__enter__.return_value = pending
+        pending.value = response
+        page = MagicMock(url="https://editor.csdn.net/md/")
+        page.expect_response.return_value = pending
+        driver = CsdnPlaywrightDriver(Path("profile"))
+        driver._click_first = MagicMock()
+
+        receipt = driver._save_draft(page)
+
+        self.assertEqual(receipt.remote_id, "123456")
+        self.assertEqual(
+            receipt.result_url,
+            "https://editor.csdn.net/md/?articleId=123456",
+        )
+
+    def test_csdn_missing_blogger_profile_waits_for_user(self) -> None:
+        response = MagicMock(status=400)
+        response.json.return_value = {"code": 400, "msg": "博主不存在"}
+        pending = MagicMock()
+        pending.__enter__.return_value = pending
+        pending.value = response
+        page = MagicMock(url="https://editor.csdn.net/md/")
+        page.expect_response.return_value = pending
+        driver = CsdnPlaywrightDriver(Path("profile"))
+        driver._click_first = MagicMock()
+
+        with self.assertRaisesRegex(UserActionRequired, "开通博客空间"):
+            driver._save_draft(page)
 
     def test_csdn_drag_drop_requires_a_verified_platform_image_url(self) -> None:
         page = MagicMock()
