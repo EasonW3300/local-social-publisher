@@ -42,6 +42,7 @@ def main() -> None:
         open_csdn_login=runtime.open_csdn_login,
         open_wechat_login=runtime.open_wechat_login,
         check_csdn_login=runtime.is_csdn_logged_in,
+        check_wechat_api=runtime.check_wechat_api,
         frontend_dir=frontend_dir,
     )
     if not args.no_browser:

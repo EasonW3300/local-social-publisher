@@ -225,6 +225,33 @@ class ApiTests(unittest.TestCase):
             self.assertEqual(status_response.json(), {"logged_in": True})
         self.assertEqual(opened, ["csdn", "wechat"])
 
+    def test_wechat_api_status_endpoint_returns_probe_result(self) -> None:
+        data_dir = Path(self.temp.name) / "wechat-status-app"
+        with TestClient(
+            create_app(
+                data_dir,
+                check_wechat_api=lambda: (
+                    False,
+                    "wechat_not_configured",
+                    "请先保存微信公众号 AppID 和 AppSecret",
+                ),
+            )
+        ) as client:
+            headers = {
+                "X-Local-Publisher-Token": client.get("/api/session").json()["token"]
+            }
+            response = client.post("/api/settings/wechat/status", headers=headers)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {
+                "ready": False,
+                "code": "wechat_not_configured",
+                "message": "请先保存微信公众号 AppID 和 AppSecret",
+            },
+        )
+
     def test_built_frontend_can_be_served_from_loopback_app(self) -> None:
         frontend = Path(self.temp.name) / "static"
         frontend.mkdir()

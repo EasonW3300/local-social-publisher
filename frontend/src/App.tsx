@@ -3,6 +3,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import {
   ApiError,
   checkCsdnLogin,
+  checkWeChatApi,
   getWeChatSettings,
   listSubmissions,
   openPlatformLogin,
@@ -58,6 +59,7 @@ export default function App() {
   const [wechatSecret, setWechatSecret] = useState('')
   const [browserFallback, setBrowserFallback] = useState(false)
   const [csdnLoginState, setCsdnLoginState] = useState<'unknown' | 'checking' | 'ready' | 'login_required'>('unknown')
+  const [wechatApiState, setWechatApiState] = useState<'unknown' | 'checking' | 'ready' | 'unavailable'>('unknown')
 
   const values = useMemo<PublishForm | null>(() => {
     if (!image) return null
@@ -198,6 +200,18 @@ export default function App() {
     }
   }
 
+  async function inspectWeChatApi() {
+    setWechatApiState('checking')
+    try {
+      const result = await checkWeChatApi()
+      setWechatApiState(result.ready ? 'ready' : 'unavailable')
+      setMessage(result.message)
+    } catch (error) {
+      setWechatApiState('unknown')
+      setMessage(error instanceof Error ? error.message : '无法检查微信公众号 API')
+    }
+  }
+
   return (
     <main>
       <header className="masthead">
@@ -227,12 +241,15 @@ export default function App() {
             <label className="fallback-check"><input type="checkbox" checked={browserFallback} onChange={(event) => setBrowserFallback(event.target.checked)} />官方接口无权限时启用浏览器降级</label>
           </div>
           <div className="settings-actions">
+            <button className="save-settings" type="submit">安全保存</button>
+            <button type="button" onClick={() => void inspectWeChatApi()}>{wechatApiState === 'checking' ? '检查中…' : '检查微信 API'}</button>
+            {wechatApiState === 'ready' && <span className="login-ready">微信 API 可用</span>}
+            {wechatApiState === 'unavailable' && <span className="login-required">微信 API 暂不可用</span>}
             <button type="button" onClick={() => void openLogin('wechat')}>打开微信登录</button>
             <button type="button" onClick={() => void openLogin('csdn')}>打开 CSDN 登录</button>
             <button type="button" onClick={() => void inspectCsdnLogin()}>{csdnLoginState === 'checking' ? '检查中…' : '检查 CSDN 登录'}</button>
             {csdnLoginState === 'ready' && <span className="login-ready">CSDN 已登录</span>}
             {csdnLoginState === 'login_required' && <span className="login-required">CSDN 尚未登录</span>}
-            <button className="save-settings" type="submit">安全保存</button>
           </div>
         </form>
       )}

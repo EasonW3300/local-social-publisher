@@ -53,6 +53,17 @@ def job(image: Path, *, remote_id: str | None = None, body: str = "<p>body</p>")
 
 
 class WeChatOfficialAdapterTests(unittest.TestCase):
+    def test_credentials_check_only_requests_a_token(self) -> None:
+        transport = FakeTransport([{"access_token": "token", "expires_in": 7200}])
+        adapter = WeChatOfficialAdapter(
+            WeChatConfig("appid", "wechat-secret"), FakeSecrets(), transport
+        )
+
+        adapter.check_credentials()
+
+        self.assertEqual(len(transport.calls), 1)
+        self.assertIn("/stable_token", transport.calls[0][1])
+
     def test_submits_material_draft_and_publish_job(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             image = Path(directory) / "image.png"

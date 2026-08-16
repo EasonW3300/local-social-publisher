@@ -60,9 +60,16 @@ class WeChatSettingsResponse(BaseModel):
     browser_fallback_enabled: bool
 
 
+class WeChatApiStatusResponse(BaseModel):
+    ready: bool
+    code: str | None = None
+    message: str
+
+
 DispatchJobs = Callable[[list[str]], None]
 OpenBrowser = Callable[[], None]
 CheckLogin = Callable[[], bool]
+CheckWeChatApi = Callable[[], tuple[bool, str | None, str]]
 
 
 def create_app(
@@ -73,6 +80,7 @@ def create_app(
     open_csdn_login: OpenBrowser | None = None,
     open_wechat_login: OpenBrowser | None = None,
     check_csdn_login: CheckLogin | None = None,
+    check_wechat_api: CheckWeChatApi | None = None,
     frontend_dir: Path | None = None,
 ) -> FastAPI:
     data_dir = Path(data_dir)
@@ -164,6 +172,13 @@ def create_app(
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                     detail=f"unable to inspect CSDN login: {error}",
                 ) from error
+
+    if check_wechat_api is not None:
+
+        @app.post("/api/settings/wechat/status", response_model=WeChatApiStatusResponse)
+        def wechat_api_status() -> WeChatApiStatusResponse:
+            ready, code, message = check_wechat_api()
+            return WeChatApiStatusResponse(ready=ready, code=code, message=message)
 
     @app.post("/api/previews", response_model=PreviewResponse)
     def preview(

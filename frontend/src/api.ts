@@ -3,6 +3,7 @@ import type {
   Platform,
   PreviewItem,
   SubmissionListItem,
+  WeChatApiStatus,
   WeChatSettings,
 } from './types'
 
@@ -129,4 +130,11 @@ export async function checkCsdnLogin(): Promise<boolean> {
     await writeRequest('/api/browser/csdn/status', { method: 'POST' }),
   )
   return (await response.json()).logged_in as boolean
+}
+
+export async function checkWeChatApi(): Promise<WeChatApiStatus> {
+  const response = await checked(
+    await writeRequest('/api/settings/wechat/status', { method: 'POST' }),
+  )
+  return response.json()
 }

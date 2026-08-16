@@ -230,4 +230,27 @@ describe('App', () => {
 
     expect(await screen.findByText('CSDN 已登录')).toBeInTheDocument()
   })
+
+  it('checks WeChat API readiness without publishing content', async () => {
+    const user = userEvent.setup()
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url.endsWith('/api/session')) return response({ token: 'local-token' })
+      if (url.endsWith('/api/settings/wechat/status') && init?.method === 'POST') {
+        return response({ ready: true, code: null, message: '微信公众号官方 API 凭证与网络检查通过' })
+      }
+      if (url.endsWith('/api/submissions')) return response({ items: [] })
+      if (url.endsWith('/api/settings/wechat')) {
+        return response({ app_id: 'wx-app', secret_configured: true, official_configured: true, browser_fallback_enabled: false })
+      }
+      throw new Error(url)
+    })
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: '账号设置' }))
+    await user.click(screen.getByRole('button', { name: '检查微信 API' }))
+
+    expect(await screen.findByText('微信 API 可用')).toBeInTheDocument()
+    expect(await screen.findByText('微信公众号官方 API 凭证与网络检查通过')).toBeInTheDocument()
+  })
 })

@@ -53,7 +53,9 @@ python3 -m venv .venv
 
 The UI opens at `http://127.0.0.1:8765`. Use **账号设置** to configure a
 WeChat AppID/AppSecret or open the isolated WeChat and CSDN browser profiles for
-interactive login.
+interactive login. After saving WeChat credentials, **检查微信 API** verifies
+the credentials, network path, and IP whitelist without creating a draft or
+publishing content.
 
 ## Publishing guarantees
 

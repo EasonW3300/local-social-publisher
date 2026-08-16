@@ -8,7 +8,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from .adapters.csdn import CsdnAdapter, CsdnPlaywrightDriver
 from .adapters.wechat import WeChatConfig, WeChatOfficialAdapter
 from .adapters.wechat_browser import WeChatBrowserFallbackAdapter, WeChatPlaywrightDriver
-from .jobs import JobRunner, SchedulerCore
+from .jobs import JobRunner, PermanentPublishError, SchedulerCore, TransientPublishError
 from .routing import WeChatRoutingAdapter
 from .secrets import KeyringSecretStore, SecretStore
 from .settings import WECHAT_SECRET_REFERENCE, SettingsService
@@ -73,6 +73,21 @@ class PublisherRuntime:
 
     def is_csdn_logged_in(self) -> bool:
         return bool(self.executor.submit(self.csdn_driver.is_logged_in).result(timeout=30))
+
+    def check_wechat_api(self) -> tuple[bool, str | None, str]:
+        current = self.settings.wechat()
+        if not current.official_configured:
+            return False, "wechat_not_configured", "请先保存微信公众号 AppID 和 AppSecret"
+        adapter = WeChatOfficialAdapter(
+            WeChatConfig(current.app_id, WECHAT_SECRET_REFERENCE), self.secrets
+        )
+        try:
+            adapter.check_credentials()
+        except (PermanentPublishError, TransientPublishError) as error:
+            return False, error.code, str(error)
+        except Exception as error:
+            return False, "wechat_probe_failed", str(error)
+        return True, None, "微信公众号官方 API 凭证与网络检查通过"
 
     def _tick(self) -> None:
         self.executor.submit(self.scheduler_core.recover_and_run)

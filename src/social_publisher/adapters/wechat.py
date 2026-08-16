@@ -89,6 +89,10 @@ class WeChatOfficialAdapter:
         self.clock = clock
         self._token: _CachedToken | None = None
 
+    def check_credentials(self) -> None:
+        """Validate credentials and network access without creating any content."""
+        self._access_token()
+
     def publish(self, job: JobContext) -> PublishResult:
         token = self._access_token()
         if job.remote_id:

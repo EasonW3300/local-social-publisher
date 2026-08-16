@@ -35,3 +35,9 @@ export interface WeChatSettings {
   official_configured: boolean
   browser_fallback_enabled: boolean
 }
+
+export interface WeChatApiStatus {
+  ready: boolean
+  code: string | null
+  message: string
+}
