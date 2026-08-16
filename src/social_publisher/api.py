@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import secrets
 import shutil
 import tempfile
 from collections.abc import Callable
@@ -8,9 +9,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
-from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile, status
+from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, Request, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from starlette.responses import JSONResponse
 from starlette.staticfiles import StaticFiles
 
 from .assets import AssetStore
@@ -81,6 +83,7 @@ def create_app(
     app = FastAPI(title="Local Social Publisher", version="0.1.0")
     app.state.repository = repository
     app.state.submission_service = service
+    app.state.local_api_token = secrets.token_urlsafe(32)
     app.add_middleware(
         CORSMiddleware,
         allow_origin_regex=r"^http://(127\.0\.0\.1|localhost)(:\d+)?$",
@@ -89,9 +92,24 @@ def create_app(
         allow_headers=["Content-Type", "X-Local-Publisher-Token"],
     )
 
+    @app.middleware("http")
+    async def require_local_api_token(request: Request, call_next):
+        if request.method not in {"GET", "HEAD", "OPTIONS"}:
+            supplied = request.headers.get("X-Local-Publisher-Token", "")
+            if not supplied or not secrets.compare_digest(supplied, app.state.local_api_token):
+                return JSONResponse(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    content={"detail": "invalid local session token"},
+                )
+        return await call_next(request)
+
     @app.get("/api/health", response_model=HealthResponse)
     def health() -> HealthResponse:
         return HealthResponse(status="ok")
+
+    @app.get("/api/session")
+    def local_session() -> dict[str, str]:
+        return {"token": app.state.local_api_token}
 
     if settings_service is not None:
 

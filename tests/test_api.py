@@ -20,6 +20,9 @@ class ApiTests(unittest.TestCase):
         self.client = TestClient(
             create_app(Path(self.temp.name), dispatch_jobs=self.dispatched.append)
         )
+        self.headers = {
+            "X-Local-Publisher-Token": self.client.get("/api/session").json()["token"]
+        }
 
     def tearDown(self) -> None:
         self.client.close()
@@ -49,6 +52,7 @@ class ApiTests(unittest.TestCase):
                 image_usage=json.dumps({"csdn": "body"}),
             ),
             files={"image": ("image.png", b"image", "image/png")},
+            headers=self.headers,
         )
         self.assertEqual(response.status_code, 200)
         items = response.json()["items"]
@@ -61,6 +65,7 @@ class ApiTests(unittest.TestCase):
             "/api/submissions",
             data=self.form(),
             files={"image": ("image.png", b"image", "image/png")},
+            headers=self.headers,
         )
         self.assertEqual(response.status_code, 201)
         result = response.json()
@@ -77,12 +82,14 @@ class ApiTests(unittest.TestCase):
             "/api/submissions",
             data=self.form(),
             files={"image": ("image.png", b"same", "image/png")},
+            headers=self.headers,
         )
         self.assertEqual(first.status_code, 201)
         duplicate = self.client.post(
             "/api/submissions",
             data=self.form(),
             files={"image": ("image.png", b"same", "image/png")},
+            headers=self.headers,
         )
         self.assertEqual(duplicate.status_code, 409)
         self.assertEqual(duplicate.json()["detail"]["code"], "duplicate_submission")
@@ -91,6 +98,7 @@ class ApiTests(unittest.TestCase):
             "/api/submissions",
             data=self.form(confirm_duplicate="true"),
             files={"image": ("image.png", b"same", "image/png")},
+            headers=self.headers,
         )
         self.assertEqual(confirmed.status_code, 201)
 
@@ -99,6 +107,7 @@ class ApiTests(unittest.TestCase):
             "/api/submissions",
             data=self.form(platforms="[]", image_usage="{}"),
             files={"image": ("image.png", b"image", "image/png")},
+            headers=self.headers,
         )
         self.assertEqual(response.status_code, 422)
 
@@ -107,9 +116,18 @@ class ApiTests(unittest.TestCase):
             "/api/submissions",
             data=self.form(scheduled_at="2026-08-16T12:00:00+08:00"),
             files={"image": ("image.png", b"image", "image/png")},
+            headers=self.headers,
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(self.dispatched, [])
+
+    def test_write_requests_require_the_local_session_token(self) -> None:
+        response = self.client.post(
+            "/api/previews",
+            data=self.form(),
+            files={"image": ("image.png", b"image", "image/png")},
+        )
+        self.assertEqual(response.status_code, 403)
 
     def test_wechat_settings_never_return_the_secret(self) -> None:
         data_dir = Path(self.temp.name) / "settings-app"
@@ -117,6 +135,9 @@ class ApiTests(unittest.TestCase):
         repository.initialize()
         settings = SettingsService(repository, MemorySecretStore())
         with TestClient(create_app(data_dir, settings_service=settings)) as client:
+            headers = {
+                "X-Local-Publisher-Token": client.get("/api/session").json()["token"]
+            }
             updated = client.put(
                 "/api/settings/wechat",
                 json={
@@ -124,6 +145,7 @@ class ApiTests(unittest.TestCase):
                     "app_secret": "top-secret",
                     "browser_fallback_enabled": True,
                 },
+                headers=headers,
             )
             self.assertEqual(updated.status_code, 200)
             self.assertNotIn("app_secret", updated.json())
@@ -139,8 +161,17 @@ class ApiTests(unittest.TestCase):
                 open_wechat_login=lambda: opened.append("wechat"),
             )
         ) as client:
-            self.assertEqual(client.post("/api/browser/csdn/login").status_code, 202)
-            self.assertEqual(client.post("/api/browser/wechat/login").status_code, 202)
+            headers = {
+                "X-Local-Publisher-Token": client.get("/api/session").json()["token"]
+            }
+            self.assertEqual(
+                client.post("/api/browser/csdn/login", headers=headers).status_code,
+                202,
+            )
+            self.assertEqual(
+                client.post("/api/browser/wechat/login", headers=headers).status_code,
+                202,
+            )
         self.assertEqual(opened, ["csdn", "wechat"])
 
     def test_built_frontend_can_be_served_from_loopback_app(self) -> None:

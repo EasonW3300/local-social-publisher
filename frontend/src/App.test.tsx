@@ -16,6 +16,7 @@ describe('App', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input).endsWith('/api/session')) return response({ token: 'local-token' })
         if (String(input).endsWith('/api/submissions')) return response({ items: [] })
         throw new Error(`unexpected fetch: ${String(input)}`)
       }),
@@ -41,6 +42,7 @@ describe('App', () => {
     const fetchMock = vi.mocked(fetch)
     fetchMock.mockImplementation(async (input) => {
       const url = String(input)
+      if (url.endsWith('/api/session')) return response({ token: 'local-token' })
       if (url.endsWith('/api/submissions')) return response({ items: [] })
       if (url.endsWith('/api/previews')) {
         return response({
@@ -69,6 +71,7 @@ describe('App', () => {
     let submitted = false
     fetchMock.mockImplementation(async (input, init) => {
       const url = String(input)
+      if (url.endsWith('/api/session')) return response({ token: 'local-token' })
       if (url.endsWith('/api/previews')) {
         return response({
           items: [
@@ -109,6 +112,7 @@ describe('App', () => {
     const fetchMock = vi.mocked(fetch)
     fetchMock.mockImplementation(async (input, init) => {
       const url = String(input)
+      if (url.endsWith('/api/session')) return response({ token: 'local-token' })
       if (url.endsWith('/api/submissions')) return response({ items: [] })
       if (url.endsWith('/api/settings/wechat') && init?.method === 'PUT') {
         return response({ app_id: 'wx-app', secret_configured: true, official_configured: true, browser_fallback_enabled: true })

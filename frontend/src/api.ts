@@ -25,6 +25,27 @@ export class ApiError extends Error {
   }
 }
 
+let localTokenPromise: Promise<string> | undefined
+
+async function localToken(): Promise<string> {
+  if (!localTokenPromise) {
+    localTokenPromise = fetch('/api/session')
+      .then(checked)
+      .then(async (response) => (await response.json()).token as string)
+      .catch((error) => {
+        localTokenPromise = undefined
+        throw error
+      })
+  }
+  return localTokenPromise
+}
+
+async function writeRequest(url: string, init: RequestInit): Promise<Response> {
+  const headers = new Headers(init.headers)
+  headers.set('X-Local-Publisher-Token', await localToken())
+  return fetch(url, { ...init, headers })
+}
+
 function formData(values: PublishForm, confirmDuplicate = false): FormData {
   const data = new FormData()
   data.set('title', values.title)
@@ -55,14 +76,14 @@ async function checked(response: Response): Promise<Response> {
 
 export async function preview(values: PublishForm): Promise<PreviewItem[]> {
   const response = await checked(
-    await fetch('/api/previews', { method: 'POST', body: formData(values) }),
+    await writeRequest('/api/previews', { method: 'POST', body: formData(values) }),
   )
   return (await response.json()).items
 }
 
 export async function submit(values: PublishForm, confirmDuplicate = false): Promise<string> {
   const response = await checked(
-    await fetch('/api/submissions', {
+    await writeRequest('/api/submissions', {
       method: 'POST',
       body: formData(values, confirmDuplicate),
     }),
@@ -86,7 +107,7 @@ export async function saveWeChatSettings(values: {
   browser_fallback_enabled: boolean
 }): Promise<WeChatSettings> {
   const response = await checked(
-    await fetch('/api/settings/wechat', {
+    await writeRequest('/api/settings/wechat', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(values),
@@ -96,5 +117,5 @@ export async function saveWeChatSettings(values: {
 }
 
 export async function openPlatformLogin(platform: Platform): Promise<void> {
-  await checked(await fetch(`/api/browser/${platform}/login`, { method: 'POST' }))
+  await checked(await writeRequest(`/api/browser/${platform}/login`, { method: 'POST' }))
 }

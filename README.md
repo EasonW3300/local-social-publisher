@@ -14,6 +14,9 @@ The first release targets:
 The application will expose a React user interface through a loopback-only
 FastAPI service. SQLite stores grouped submissions, per-platform jobs, rendered
 payloads, links, and audit events. Secrets are never stored in SQLite.
+Every write request also carries an in-memory, per-process session token fetched
+by the same-origin frontend, preventing an unrelated website from silently
+triggering a local publication.
 
 ## Status
 
