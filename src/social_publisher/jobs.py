@@ -28,9 +28,16 @@ class PublishResult:
     message: str | None = None
 
     def __post_init__(self) -> None:
-        allowed = {JobStatus.SUCCEEDED, JobStatus.WAITING_USER, JobStatus.UNKNOWN}
+        allowed = {
+            JobStatus.SUCCEEDED,
+            JobStatus.PENDING_REMOTE,
+            JobStatus.WAITING_USER,
+            JobStatus.UNKNOWN,
+        }
         if self.status not in allowed:
-            raise ValueError("adapter result must be succeeded, waiting_user, or unknown")
+            raise ValueError(
+                "adapter result must be succeeded, pending_remote, waiting_user, or unknown"
+            )
         if self.status is JobStatus.SUCCEEDED and not self.result_url:
             raise ValueError("successful publishing must include a result URL")
 
@@ -47,11 +54,13 @@ class JobStateMachine:
         JobStatus.SCHEDULED: {JobStatus.RUNNING, JobStatus.MISSED, JobStatus.CANCELED},
         JobStatus.RUNNING: {
             JobStatus.SCHEDULED,
+            JobStatus.PENDING_REMOTE,
             JobStatus.WAITING_USER,
             JobStatus.SUCCEEDED,
             JobStatus.FAILED,
             JobStatus.UNKNOWN,
         },
+        JobStatus.PENDING_REMOTE: {JobStatus.RUNNING, JobStatus.CANCELED},
         JobStatus.WAITING_USER: {JobStatus.RUNNING, JobStatus.CANCELED},
         JobStatus.FAILED: {JobStatus.READY, JobStatus.CANCELED},
         JobStatus.MISSED: {JobStatus.READY, JobStatus.CANCELED},
@@ -78,11 +87,20 @@ class JobRunner:
         context = self.repository.get_job_context(job_id)
         if context is None:
             raise ValueError(f"job not found: {job_id}")
-        if context.status not in (JobStatus.READY, JobStatus.SCHEDULED, JobStatus.WAITING_USER):
+        if context.status not in (
+            JobStatus.READY,
+            JobStatus.SCHEDULED,
+            JobStatus.PENDING_REMOTE,
+            JobStatus.WAITING_USER,
+        ):
             raise ValueError(f"job is not runnable from {context.status.value}")
 
         JobStateMachine.ensure_allowed(context.status, JobStatus.RUNNING)
-        attempt = context.attempts + 1
+        attempt = (
+            context.attempts
+            if context.status is JobStatus.PENDING_REMOTE
+            else context.attempts + 1
+        )
         self.repository.transition_job(
             job_id,
             expected=context.status,
@@ -114,6 +132,9 @@ class JobRunner:
             job_id,
             expected=JobStatus.RUNNING,
             target=result.status,
+            scheduled_at=(now + timedelta(seconds=10))
+            if result.status is JobStatus.PENDING_REMOTE
+            else None,
             remote_id=result.remote_id,
             result_url=result.result_url,
             event_details={"message": result.message} if result.message else None,

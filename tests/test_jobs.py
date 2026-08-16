@@ -105,6 +105,31 @@ class JobRunnerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not runnable"):
             runner.run(self.job_id)
 
+    def test_pending_remote_is_polled_without_incrementing_publish_attempts(self) -> None:
+        adapter = FakeAdapter(
+            [
+                PublishResult(JobStatus.PENDING_REMOTE, remote_id="publish-1"),
+                PublishResult(
+                    JobStatus.SUCCEEDED,
+                    remote_id="article-1",
+                    result_url="https://example.com/article",
+                ),
+            ]
+        )
+        runner = JobRunner(self.repository, (adapter,))
+        now = datetime(2026, 8, 16, 12, 0, tzinfo=timezone.utc)
+
+        self.assertEqual(runner.run(self.job_id, now), JobStatus.PENDING_REMOTE)
+        pending = self.repository.get_job_context(self.job_id)
+        assert pending is not None
+        self.assertEqual(pending.attempts, 1)
+        self.assertEqual(pending.remote_id, "publish-1")
+
+        self.assertEqual(runner.run(self.job_id, now + timedelta(seconds=10)), JobStatus.SUCCEEDED)
+        finished = self.repository.get_job_context(self.job_id)
+        assert finished is not None
+        self.assertEqual(finished.attempts, 1)
+
     def test_missing_adapter_fails_safely(self) -> None:
         runner = JobRunner(self.repository, ())
         self.assertEqual(runner.run(self.job_id), JobStatus.FAILED)

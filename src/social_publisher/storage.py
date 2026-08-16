@@ -34,6 +34,7 @@ class JobContext:
     image_path: Path
     image_usage: str
     scheduled_at: datetime | None
+    remote_id: str | None
 
 
 class Repository:
@@ -174,6 +175,7 @@ class Repository:
                     platform_jobs.max_attempts,
                     platform_jobs.image_usage,
                     platform_jobs.scheduled_at,
+                    platform_jobs.remote_id,
                     rendered_contents.title,
                     rendered_contents.body,
                     rendered_contents.content_type,
@@ -201,6 +203,7 @@ class Repository:
             image_path=Path(row["stored_path"]),
             image_usage=row["image_usage"],
             scheduled_at=scheduled_at,
+            remote_id=row["remote_id"],
         )
 
     def list_runnable_job_ids(self, now: datetime, limit: int = 20) -> list[str]:
@@ -213,10 +216,11 @@ class Repository:
                 FROM platform_jobs
                 WHERE status = 'ready'
                    OR (status = 'scheduled' AND scheduled_at <= ?)
+                   OR (status = 'pending_remote' AND scheduled_at <= ?)
                 ORDER BY COALESCE(scheduled_at, created_at), created_at
                 LIMIT ?
                 """,
-                (now.isoformat(), limit),
+                (now.isoformat(), now.isoformat(), limit),
             ).fetchall()
         return [row["id"] for row in rows]
 
@@ -307,7 +311,7 @@ CREATE TABLE IF NOT EXISTS platform_jobs (
     post_id TEXT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     platform TEXT NOT NULL CHECK(platform IN ('wechat', 'csdn')),
     status TEXT NOT NULL CHECK(status IN (
-        'ready', 'scheduled', 'running', 'waiting_user', 'succeeded',
+        'ready', 'scheduled', 'running', 'pending_remote', 'waiting_user', 'succeeded',
         'failed', 'unknown', 'missed', 'canceled'
     )),
     image_usage TEXT NOT NULL CHECK(image_usage IN ('cover', 'body', 'both')),

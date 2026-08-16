@@ -23,6 +23,7 @@ class JobStatus(str, Enum):
     READY = "ready"
     SCHEDULED = "scheduled"
     RUNNING = "running"
+    PENDING_REMOTE = "pending_remote"
     WAITING_USER = "waiting_user"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
@@ -87,4 +88,3 @@ class PostDraft:
         object.__setattr__(self, "markdown", markdown)
         object.__setattr__(self, "image_path", Path(self.image_path))
         object.__setattr__(self, "platforms", unique_platforms)
-
