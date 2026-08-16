@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -105,6 +105,46 @@ describe('App', () => {
 
     expect(await screen.findByText('发布任务已创建，正在后台执行。')).toBeInTheDocument()
     expect(await screen.findByText('测试')).toBeInTheDocument()
+  })
+
+  it('serializes a local appointment and creates a scheduled submission', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url.endsWith('/api/session')) return response({ token: 'local-token' })
+      if (url.endsWith('/api/previews')) {
+        return response({
+          items: [
+            { platform: 'wechat', title: '预约测试', body: '<p>正文</p>', content_type: 'text/html', warnings: [] },
+            { platform: 'csdn', title: '预约测试', body: '正文', content_type: 'text/markdown', warnings: [] },
+          ],
+        })
+      }
+      if (url.endsWith('/api/submissions') && init?.method === 'POST') {
+        return response({ post_id: 'scheduled', job_ids: { wechat: 'w', csdn: 'c' }, fingerprint: 'f' }, 201)
+      }
+      if (url.endsWith('/api/submissions')) return response({ items: [] })
+      if (url.endsWith('/api/settings/wechat')) {
+        return response({ app_id: '', secret_configured: false, official_configured: false, browser_fallback_enabled: false })
+      }
+      throw new Error(url)
+    })
+
+    render(<App />)
+    await user.type(screen.getByLabelText('标题'), '预约测试')
+    await user.type(screen.getByLabelText('文案'), '正文')
+    await user.upload(screen.getByLabelText('选择图片'), new File(['image'], 'image.png', { type: 'image/png' }))
+    fireEvent.change(screen.getByLabelText('预约时间'), { target: { value: '2026-08-17T10:00' } })
+    await user.click(screen.getByRole('button', { name: '生成平台预览' }))
+    await user.click(await screen.findByRole('button', { name: '确认并预约' }))
+
+    expect(await screen.findByText('预约任务已创建。')).toBeInTheDocument()
+    const request = fetchMock.mock.calls.find(([url, init]) =>
+      String(url).endsWith('/api/submissions') && init?.method === 'POST',
+    )
+    const body = request?.[1]?.body as FormData
+    expect(body.get('scheduled_at')).toBe(new Date('2026-08-17T10:00').toISOString())
   })
 
   it('saves WeChat credentials without rendering the secret back', async () => {
