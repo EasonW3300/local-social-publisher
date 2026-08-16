@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Playfair+Display:wght@600&display=swap');
+
+:root {
+  color: #25231f;
+  background: #f4f0e8;
+  font-family: 'Noto Sans SC', system-ui, sans-serif;
+  font-synthesis: none;
+  --ink: #25231f;
+  --muted: #787268;
+  --paper: #fffdf8;
+  --line: #ddd5c7;
+  --orange: #d85d31;
+  --green: #395f4b;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 320px; min-height: 100vh; }
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+
+main { width: min(1400px, calc(100% - 48px)); margin: 0 auto; padding: 42px 0 80px; }
+.masthead { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid var(--ink); padding-bottom: 28px; margin-bottom: 30px; }
+.eyebrow, .panel-title p, .history-title p { letter-spacing: .18em; font-size: 11px; font-weight: 700; color: var(--orange); margin: 0 0 8px; }
+h1 { font-family: 'Playfair Display', 'Noto Sans SC', serif; font-size: clamp(38px, 5vw, 68px); line-height: 1; margin: 0; font-weight: 600; }
+.lead { color: var(--muted); margin: 16px 0 0; }
+.privacy-pill { border: 1px solid var(--line); background: rgba(255,255,255,.5); border-radius: 999px; padding: 10px 16px; font-size: 12px; }
+.privacy-pill span { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #4f8a62; margin-right: 8px; }
+
+.workspace { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(340px, .85fr); gap: 24px; align-items: start; }
+.composer, .preview-panel, .history { background: var(--paper); border: 1px solid var(--line); box-shadow: 0 14px 45px rgba(54,44,29,.06); }
+.composer { padding: 30px; }
+.section-heading { display: flex; gap: 13px; align-items: center; margin-bottom: 22px; }
+.section-heading > span { font-family: 'Playfair Display', serif; color: var(--orange); font-size: 22px; }
+.section-heading h2, .panel-title h2, .history-title h2 { margin: 0; font-size: 21px; }
+.section-heading p { margin: 2px 0 0; color: var(--muted); font-size: 12px; }
+.destination-heading { margin-top: 32px; }
+
+.field { display: block; margin-bottom: 20px; }
+.field > span { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 8px; }
+.field b { color: var(--muted); font-size: 11px; font-weight: 500; }
+.field input, .field textarea { width: 100%; border: 1px solid var(--line); background: #fbf8f2; border-radius: 3px; padding: 13px 14px; outline: none; transition: .2s; }
+.field input:focus, .field textarea:focus { border-color: var(--orange); box-shadow: 0 0 0 3px rgba(216,93,49,.09); background: white; }
+.field textarea { min-height: 230px; resize: vertical; line-height: 1.75; }
+.schedule-field { max-width: 360px; margin-top: 24px; }
+
+.image-drop { display: flex; flex-direction: column; align-items: center; border: 1px dashed #b9ae9e; padding: 24px; background: #faf6ee; cursor: pointer; }
+.image-drop input { position: absolute; opacity: 0; pointer-events: none; }
+.image-drop strong { color: var(--orange); }
+.image-drop span { font-size: 11px; color: var(--muted); margin-top: 5px; }
+.image-drop.has-file { border-style: solid; border-color: #7c9b85; background: #f2f7f2; }
+
+.platform-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.platform-card { border: 1px solid var(--line); background: #faf8f3; }
+.platform-card.selected { border-color: var(--ink); background: white; }
+.platform-card > button { width: 100%; display: flex; align-items: center; gap: 10px; border: 0; padding: 14px; background: transparent; text-align: left; color: inherit; }
+.platform-card i, .preview-card header i, .job-list i { display: grid; place-items: center; width: 34px; height: 34px; background: var(--ink); color: white; font-style: normal; font-weight: 700; flex: 0 0 auto; }
+.platform-card button span { flex: 1; display: flex; flex-direction: column; }
+.platform-card small { color: var(--muted); font-size: 10px; margin-top: 2px; }
+.platform-card em { font-style: normal; font-size: 11px; color: var(--muted); }
+.platform-card.selected em { color: var(--green); font-weight: 700; }
+.platform-card > label { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); padding: 9px 14px; font-size: 11px; color: var(--muted); }
+.platform-card select { border: 0; background: transparent; color: var(--ink); }
+
+.message { border-left: 3px solid var(--orange); padding: 9px 12px; background: #fff6ee; font-size: 12px; }
+.actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 18px; border-top: 1px solid var(--line); }
+.actions button, .history-title button { border: 1px solid var(--ink); padding: 11px 18px; background: transparent; }
+.actions .primary { background: var(--ink); color: white; min-width: 145px; }
+.actions button:disabled { opacity: .45; cursor: not-allowed; }
+
+.preview-panel { position: sticky; top: 20px; padding: 24px; min-height: 620px; }
+.panel-title, .history-title { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--ink); padding-bottom: 15px; }
+.panel-title > span { font-family: 'Playfair Display', serif; font-size: 27px; color: var(--orange); }
+.empty-preview { min-height: 470px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: var(--muted); }
+.empty-preview i { display: grid; place-items: center; width: 68px; height: 68px; border: 1px solid var(--line); border-radius: 50%; font-family: serif; font-size: 25px; color: var(--orange); margin-bottom: 18px; }
+.empty-preview p { font-size: 12px; max-width: 210px; }
+.preview-card { border: 1px solid var(--line); margin-top: 16px; padding: 16px; background: white; }
+.preview-card header { display: flex; align-items: center; gap: 9px; }
+.preview-card header span { margin-left: auto; color: var(--green); font-size: 11px; }
+.preview-card h3 { font-size: 18px; margin: 18px 0 12px; }
+.preview-card .rendered, .preview-card pre { font-size: 12px; line-height: 1.7; color: #555047; max-height: 200px; overflow: auto; white-space: pre-wrap; }
+.preview-card img { max-width: 100%; }
+
+.history { margin-top: 24px; padding: 24px 30px; }
+.history-title button { padding: 7px 14px; font-size: 11px; }
+.empty-history { color: var(--muted); font-size: 13px; padding: 24px 0 6px; }
+.record { border-bottom: 1px solid var(--line); }
+.record summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 17px 0; cursor: pointer; }
+.record summary::-webkit-details-marker { display: none; }
+.record summary > div:first-child { display: flex; flex-direction: column; gap: 3px; }
+.record summary small, .job-list small { color: var(--muted); font-size: 11px; }
+.job-chips { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.job-chips span { border: 1px solid var(--line); border-radius: 99px; padding: 5px 9px; font-size: 10px; }
+.job-chips .status-succeeded { border-color: #8bad95; color: var(--green); background: #f1f7f2; }
+.job-chips .status-failed, .job-chips .status-unknown { border-color: #d49984; color: #a44526; background: #fff4ef; }
+.job-list { background: #f9f6f0; margin-bottom: 16px; padding: 8px 14px; }
+.job-list > div { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
+.job-list span { display: flex; flex-direction: column; }
+.job-list a { margin-left: auto; color: var(--orange); font-size: 12px; }
+
+@media (max-width: 900px) {
+  main { width: min(100% - 24px, 720px); padding-top: 24px; }
+  .masthead { align-items: flex-start; gap: 20px; }
+  .privacy-pill { display: none; }
+  .workspace { grid-template-columns: 1fr; }
+  .preview-panel { position: static; min-height: 0; }
+  .empty-preview { min-height: 250px; }
+}
+
+@media (max-width: 560px) {
+  main { width: 100%; padding: 20px 12px 50px; }
+  h1 { font-size: 40px; }
+  .composer, .preview-panel, .history { padding: 20px; }
+  .platform-grid { grid-template-columns: 1fr; }
+  .actions { flex-direction: column; }
+  .actions button { width: 100%; }
+  .record summary { align-items: flex-start; flex-direction: column; }
+  .job-chips { justify-content: flex-start; }
+}
