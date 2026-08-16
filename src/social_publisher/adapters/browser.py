@@ -87,4 +87,3 @@ class PersistentPlaywrightDriver:
         if self._playwright is not None:
             self._playwright.stop()
             self._playwright = None
-

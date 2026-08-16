@@ -97,9 +97,7 @@ class JobRunner:
 
         JobStateMachine.ensure_allowed(context.status, JobStatus.RUNNING)
         attempt = (
-            context.attempts
-            if context.status is JobStatus.PENDING_REMOTE
-            else context.attempts + 1
+            context.attempts if context.status is JobStatus.PENDING_REMOTE else context.attempts + 1
         )
         self.repository.transition_job(
             job_id,

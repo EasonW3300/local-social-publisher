@@ -83,9 +83,7 @@ class BrowserAdapterTests(unittest.TestCase):
 
     def test_wechat_browser_success_requires_verified_public_link(self) -> None:
         adapter = WeChatBrowserFallbackAdapter(
-            FakeWeChatDriver(
-                BrowserPublishReceipt("abc", "https://mp.weixin.qq.com/s/example")
-            )
+            FakeWeChatDriver(BrowserPublishReceipt("abc", "https://mp.weixin.qq.com/s/example"))
         )
         result = adapter.publish(job("wechat"))
         self.assertEqual(result.status, JobStatus.SUCCEEDED)

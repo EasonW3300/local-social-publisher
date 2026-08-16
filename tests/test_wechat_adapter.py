@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -130,9 +129,7 @@ class WeChatOfficialAdapterTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             image = Path(directory) / "image.png"
             image.write_bytes(b"image")
-            transport = FakeTransport(
-                [{"access_token": "token"}, {"publish_status": 4}]
-            )
+            transport = FakeTransport([{"access_token": "token"}, {"publish_status": 4}])
             adapter = WeChatOfficialAdapter(
                 WeChatConfig("appid", "wechat-secret"), FakeSecrets(), transport
             )

@@ -12,7 +12,6 @@ from ..jobs import PermanentPublishError, PublishResult, TransientPublishError
 from ..rendering import IMAGE_URL_PLACEHOLDER
 from ..storage import JobContext
 
-
 _API_ROOT = "https://api.weixin.qq.com/cgi-bin"
 _TRANSIENT_CODES = {-1, 45009}
 
@@ -218,7 +217,9 @@ class WeChatOfficialAdapter:
 def _required_string(payload: dict[str, Any], key: str) -> str:
     value = payload.get(key)
     if not isinstance(value, str) or not value:
-        raise PermanentPublishError(f"WeChat response did not include {key}", "wechat_invalid_response")
+        raise PermanentPublishError(
+            f"WeChat response did not include {key}", "wechat_invalid_response"
+        )
     return value
 
 

@@ -19,8 +19,7 @@ def draft_for(platforms: tuple[Platform, ...] = (Platform.WECHAT, Platform.CSDN)
     return PostDraft(
         title="安全发布",
         markdown=(
-            "# Heading\n\nA **bold** paragraph with <script>alert(1)</script>.\n\n"
-            "- first\n- second"
+            "# Heading\n\nA **bold** paragraph with <script>alert(1)</script>.\n\n- first\n- second"
         ),
         image_path=Path("image.png"),
         platforms=platforms,

@@ -7,7 +7,6 @@ from typing import Protocol
 
 from .domain import AssetUsage, Platform, PostDraft
 
-
 IMAGE_URL_PLACEHOLDER = "{{IMAGE_URL}}"
 
 
@@ -144,4 +143,3 @@ def _markdown_to_safe_wechat_html(markdown: str) -> str:
 
 def _escape_markdown_alt(value: str) -> str:
     return value.replace("\\", "\\\\").replace("]", "\\]")
-

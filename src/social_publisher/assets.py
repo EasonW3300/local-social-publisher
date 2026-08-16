@@ -5,7 +5,6 @@ import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
-
 _ALLOWED_EXTENSIONS = {".gif", ".jpeg", ".jpg", ".png", ".webp"}
 _MAX_IMAGE_BYTES = 10 * 1024 * 1024
 
@@ -52,4 +51,3 @@ class AssetStore:
             stored_path=destination,
             size_bytes=size,
         )
-

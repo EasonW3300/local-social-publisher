@@ -3,11 +3,11 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterator
 
 from .assets import StoredAsset
 from .domain import JobStatus, PostDraft, content_fingerprint
@@ -270,9 +270,7 @@ class Repository:
                 values,
             )
             if cursor.rowcount != 1:
-                raise ValueError(
-                    f"job {job_id} is no longer in expected state {expected.value}"
-                )
+                raise ValueError(f"job {job_id} is no longer in expected state {expected.value}")
             details = {"from": expected.value, "to": target.value}
             if event_details:
                 details.update(event_details)

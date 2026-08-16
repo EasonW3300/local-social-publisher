@@ -82,7 +82,10 @@ class WeChatPlaywrightDriver(PersistentPlaywrightDriver):
         editor.evaluate(
             """(element, body) => {
                 element.innerHTML = body;
-                element.dispatchEvent(new InputEvent('input', {bubbles: true, inputType: 'insertText'}));
+                const event = new InputEvent(
+                    'input', {bubbles: true, inputType: 'insertText'}
+                );
+                element.dispatchEvent(event);
             }""",
             job.body,
         )
@@ -114,4 +117,3 @@ class WeChatPlaywrightDriver(PersistentPlaywrightDriver):
             raise BrowserSubmissionUnknown("微信公开链接为空")
         match = re.search(r"/s/([^?&#]+)", url)
         return BrowserPublishReceipt(remote_id=match.group(1) if match else None, result_url=url)
-

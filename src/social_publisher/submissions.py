@@ -69,4 +69,3 @@ class SubmissionService:
                             now,
                         ),
                     )
-
