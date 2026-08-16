@@ -61,7 +61,7 @@ class JobStateMachine:
             JobStatus.UNKNOWN,
         },
         JobStatus.PENDING_REMOTE: {JobStatus.RUNNING, JobStatus.CANCELED},
-        JobStatus.WAITING_USER: {JobStatus.RUNNING, JobStatus.CANCELED},
+        JobStatus.WAITING_USER: {JobStatus.READY, JobStatus.RUNNING, JobStatus.CANCELED},
         JobStatus.FAILED: {JobStatus.READY, JobStatus.CANCELED},
         JobStatus.MISSED: {JobStatus.READY, JobStatus.CANCELED},
         JobStatus.SUCCEEDED: set(),

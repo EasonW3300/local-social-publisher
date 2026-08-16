@@ -8,6 +8,7 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from social_publisher.api import create_app
+from social_publisher.domain import JobStatus
 from social_publisher.secrets import MemorySecretStore
 from social_publisher.settings import SettingsService
 from social_publisher.storage import Repository
@@ -128,6 +129,52 @@ class ApiTests(unittest.TestCase):
             files={"image": ("image.png", b"image", "image/png")},
         )
         self.assertEqual(response.status_code, 403)
+
+    def test_manual_retry_resets_a_recoverable_job_and_dispatches_it(self) -> None:
+        submitted = self.client.post(
+            "/api/submissions",
+            data=self.form(platforms='["csdn"]', image_usage='{"csdn":"body"}'),
+            files={"image": ("image.png", b"image", "image/png")},
+            headers=self.headers,
+        ).json()
+        job_id = submitted["job_ids"]["csdn"]
+        repository = self.client.app.state.repository
+        repository.transition_job(
+            job_id,
+            expected=JobStatus.READY,
+            target=JobStatus.FAILED,
+            attempts=2,
+            error_code="login_required",
+            error_message="login first",
+        )
+        self.dispatched.clear()
+
+        retried = self.client.post(f"/api/jobs/{job_id}/retry", headers=self.headers)
+
+        self.assertEqual(retried.status_code, 202)
+        context = repository.get_job_context(job_id)
+        assert context is not None
+        self.assertEqual(context.status, JobStatus.READY)
+        self.assertEqual(context.attempts, 0)
+        self.assertEqual(self.dispatched, [[job_id]])
+
+    def test_manual_retry_rejects_an_ambiguous_job(self) -> None:
+        submitted = self.client.post(
+            "/api/submissions",
+            data=self.form(platforms='["csdn"]', image_usage='{"csdn":"body"}'),
+            files={"image": ("image.png", b"image", "image/png")},
+            headers=self.headers,
+        ).json()
+        job_id = submitted["job_ids"]["csdn"]
+        self.client.app.state.repository.transition_job(
+            job_id,
+            expected=JobStatus.READY,
+            target=JobStatus.UNKNOWN,
+        )
+
+        retried = self.client.post(f"/api/jobs/{job_id}/retry", headers=self.headers)
+
+        self.assertEqual(retried.status_code, 409)
 
     def test_wechat_settings_never_return_the_secret(self) -> None:
         data_dir = Path(self.temp.name) / "settings-app"

@@ -6,6 +6,7 @@ import {
   listSubmissions,
   openPlatformLogin,
   preview,
+  retryJob,
   saveWeChatSettings,
   submit,
   type PublishForm,
@@ -175,6 +176,16 @@ export default function App() {
     }
   }
 
+  async function retry(jobId: string) {
+    try {
+      await retryJob(jobId)
+      setMessage('任务已重新进入执行队列。')
+      await refresh()
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : '任务无法重新执行')
+    }
+  }
+
   return (
     <main>
       <header className="masthead">
@@ -331,7 +342,7 @@ export default function App() {
               <div className="job-chips">{record.jobs.map((job) => <span className={`status-${job.status}`} key={job.id}>{PLATFORM_META[job.platform].name} · {STATUS_LABEL[job.status] ?? job.status}</span>)}</div>
             </summary>
             <div className="job-list">{record.jobs.map((job) => (
-              <div key={job.id}><i>{PLATFORM_META[job.platform].badge}</i><span><strong>{PLATFORM_META[job.platform].name}</strong><small>{job.error_message ?? STATUS_LABEL[job.status] ?? job.status}</small></span>{job.result_url && <a href={job.result_url} target="_blank" rel="noreferrer">打开链接</a>}</div>
+              <div key={job.id}><i>{PLATFORM_META[job.platform].badge}</i><span><strong>{PLATFORM_META[job.platform].name}</strong><small>{job.error_message ?? STATUS_LABEL[job.status] ?? job.status}</small></span>{job.result_url && <a href={job.result_url} target="_blank" rel="noreferrer">打开链接</a>}{['waiting_user', 'failed', 'missed'].includes(job.status) && <button type="button" onClick={() => void retry(job.id)}>{job.status === 'waiting_user' ? '已登录，继续' : '重新执行'}</button>}</div>
             ))}</div>
           </details>
         ))}

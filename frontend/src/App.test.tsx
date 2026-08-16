@@ -174,4 +174,38 @@ describe('App', () => {
     expect(request?.[1]?.body).toContain('top-secret')
     expect(screen.queryByDisplayValue('top-secret')).not.toBeInTheDocument()
   })
+
+  it('lets the user resume a job after completing interactive login', async () => {
+    const user = userEvent.setup()
+    const fetchMock = vi.mocked(fetch)
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url.endsWith('/api/session')) return response({ token: 'local-token' })
+      if (url.endsWith('/api/jobs/csdn-job/retry') && init?.method === 'POST') {
+        return response({ status: 'ready' }, 202)
+      }
+      if (url.endsWith('/api/submissions')) {
+        return response({
+          items: [{
+            post: { id: 'post-1', title: '待登录文章', source_markdown: '正文', created_at: new Date().toISOString(), scheduled_at: null },
+            jobs: [{ id: 'csdn-job', platform: 'csdn', status: 'waiting_user', result_url: null, error_message: null, scheduled_at: null }],
+          }],
+        })
+      }
+      if (url.endsWith('/api/settings/wechat')) {
+        return response({ app_id: '', secret_configured: false, official_configured: false, browser_fallback_enabled: false })
+      }
+      throw new Error(url)
+    })
+
+    render(<App />)
+    await user.click(await screen.findByText('待登录文章'))
+    await user.click(screen.getByRole('button', { name: '已登录，继续' }))
+
+    expect(await screen.findByText('任务已重新进入执行队列。')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/jobs/csdn-job/retry',
+      expect.objectContaining({ method: 'POST' }),
+    )
+  })
 })

@@ -16,7 +16,7 @@ from starlette.responses import JSONResponse
 from starlette.staticfiles import StaticFiles
 
 from .assets import AssetStore
-from .domain import AssetUsage, Platform, PostDraft
+from .domain import AssetUsage, JobStatus, Platform, PostDraft
 from .rendering import RendererRegistry
 from .storage import Repository
 from .submissions import DuplicateSubmissionError, SubmissionService
@@ -247,6 +247,25 @@ def create_app(
         if result is None:
             raise HTTPException(status_code=404, detail="submission not found")
         return result
+
+    @app.post("/api/jobs/{job_id}/retry", status_code=status.HTTP_202_ACCEPTED)
+    def retry_job(job_id: str, background_tasks: BackgroundTasks) -> dict[str, str]:
+        context = repository.get_job_context(job_id)
+        if context is None:
+            raise HTTPException(status_code=404, detail="job not found")
+        if context.status not in {
+            JobStatus.WAITING_USER,
+            JobStatus.FAILED,
+            JobStatus.MISSED,
+        }:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"job cannot be retried from {context.status.value}",
+            )
+        repository.reset_job_for_manual_retry(job_id, context.status)
+        if dispatch_jobs is not None:
+            background_tasks.add_task(dispatch_jobs, [job_id])
+        return {"status": JobStatus.READY.value}
 
     if frontend_dir is not None and Path(frontend_dir).is_dir():
         app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")

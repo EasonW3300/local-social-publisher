@@ -322,6 +322,38 @@ class Repository:
                 (str(uuid.uuid4()), job_id, json.dumps(details), now),
             )
 
+    def reset_job_for_manual_retry(self, job_id: str, expected: JobStatus) -> None:
+        if expected not in {JobStatus.WAITING_USER, JobStatus.FAILED, JobStatus.MISSED}:
+            raise ValueError(f"job cannot be retried from {expected.value}")
+        now = datetime.now(timezone.utc).isoformat()
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE platform_jobs
+                SET status = 'ready', attempts = 0, scheduled_at = NULL,
+                    remote_id = NULL, result_url = NULL, error_code = NULL,
+                    error_message = NULL, updated_at = ?
+                WHERE id = ? AND status = ?
+                """,
+                (now, job_id, expected.value),
+            )
+            if cursor.rowcount != 1:
+                raise ValueError(
+                    f"job {job_id} is no longer in expected state {expected.value}"
+                )
+            connection.execute(
+                """
+                INSERT INTO job_events(id, job_id, event_type, details_json, created_at)
+                VALUES (?, ?, 'manual_retry', ?, ?)
+                """,
+                (
+                    str(uuid.uuid4()),
+                    job_id,
+                    json.dumps({"from": expected.value, "to": JobStatus.READY.value}),
+                    now,
+                ),
+            )
+
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS posts (

@@ -119,3 +119,7 @@ export async function saveWeChatSettings(values: {
 export async function openPlatformLogin(platform: Platform): Promise<void> {
   await checked(await writeRequest(`/api/browser/${platform}/login`, { method: 'POST' }))
 }
+
+export async function retryJob(jobId: string): Promise<void> {
+  await checked(await writeRequest(`/api/jobs/${jobId}/retry`, { method: 'POST' }))
+}

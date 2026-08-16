@@ -107,7 +107,8 @@ h1 { font-family: Georgia, 'Songti SC', serif; font-size: clamp(38px, 5vw, 68px)
 .job-list { background: #f9f6f0; margin-bottom: 16px; padding: 8px 14px; }
 .job-list > div { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
 .job-list span { display: flex; flex-direction: column; }
-.job-list a { margin-left: auto; color: var(--orange); font-size: 12px; }
+.job-list a, .job-list button { margin-left: auto; color: var(--orange); font-size: 12px; }
+.job-list button { border: 1px solid currentColor; background: transparent; padding: 7px 10px; }
 
 @media (max-width: 900px) {
   main { width: min(100% - 24px, 720px); padding-top: 24px; }
