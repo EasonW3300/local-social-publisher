@@ -32,3 +32,31 @@ python3 -m venv .venv
 
 The project is licensed under Apache-2.0.
 
+## Run the application
+
+Build the frontend once, then start the loopback service:
+
+```bash
+cd frontend
+npm install
+npm run build
+cd ..
+python3 -m venv .venv
+.venv/bin/pip install -e '.[dev]'
+.venv/bin/local-social-publisher
+```
+
+The UI opens at `http://127.0.0.1:8765`. Use **账号设置** to configure a
+WeChat AppID/AppSecret or open the isolated WeChat and CSDN browser profiles for
+interactive login.
+
+## Publishing guarantees
+
+- WeChat official publishing stores `publish_id`, polls the asynchronous result,
+  and only marks success after a public URL is returned.
+- Browser fallback is explicit. CAPTCHA, QR, administrator confirmation, or
+  platform risk controls always pause for the user.
+- CSDN completion means a draft was created and its editor URL was saved. The
+  user performs the final CSDN review.
+- Temporary failures retry at most three times. An ambiguous submit is terminal
+  until manually inspected.
