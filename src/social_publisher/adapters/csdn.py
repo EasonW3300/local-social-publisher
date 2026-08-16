@@ -53,6 +53,20 @@ class CsdnPlaywrightDriver(PersistentPlaywrightDriver):
         page = self._page(self.EDITOR_URL)
         return "passport.csdn.net" not in page.url and "login" not in page.url.lower()
 
+    @staticmethod
+    def _dismiss_informational_modals(page) -> None:
+        for selector in (
+            ".modal__close-button[aria-label='关闭']",
+            ".el-dialog__headerbtn",
+            "button:has-text('我知道了')",
+        ):
+            locator = page.locator(selector)
+            for index in range(locator.count()):
+                candidate = locator.nth(index)
+                if candidate.is_visible():
+                    candidate.click()
+                    page.wait_for_timeout(250)
+
     def create_draft(self, job: JobContext) -> BrowserPublishReceipt:
         page = self._page(self.EDITOR_URL)
         if "passport.csdn.net" in page.url or "login" in page.url.lower():
@@ -61,6 +75,7 @@ class CsdnPlaywrightDriver(PersistentPlaywrightDriver):
         page.wait_for_selector(
             ".article-bar__title-display", state="visible", timeout=15_000
         )
+        self._dismiss_informational_modals(page)
         page.locator(".article-bar__title-display").click()
 
         self._fill_first(
