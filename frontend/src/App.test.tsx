@@ -87,7 +87,13 @@ describe('App', () => {
       if (url.endsWith('/api/submissions')) {
         return response({
           items: submitted
-            ? [{ post: { id: 'post-1', title: '测试', source_markdown: '正文', created_at: new Date().toISOString(), scheduled_at: null }, jobs: [] }]
+            ? [{
+              post: { id: 'post-1', title: '测试', source_markdown: '正文', created_at: new Date().toISOString(), scheduled_at: null },
+              jobs: [
+                { id: 'w', platform: 'wechat', status: 'succeeded', result_url: 'https://mp.weixin.qq.com/s/full-flow', error_message: null, scheduled_at: null },
+                { id: 'c', platform: 'csdn', status: 'succeeded', result_url: 'https://editor.csdn.net/md/?articleId=draft-1', error_message: null, scheduled_at: null },
+              ],
+            }]
             : [],
         })
       }
@@ -104,7 +110,13 @@ describe('App', () => {
     await user.click(await screen.findByRole('button', { name: '确认并发布' }))
 
     expect(await screen.findByText('发布任务已创建，正在后台执行。')).toBeInTheDocument()
-    expect(await screen.findByText('测试')).toBeInTheDocument()
+    await user.click(await screen.findByText('测试'))
+    expect(screen.getByText('微信公众号 · 已完成')).toBeInTheDocument()
+    expect(screen.getByText('CSDN · 已完成')).toBeInTheDocument()
+    expect(screen.getAllByRole('link', { name: '打开链接' }).map((link) => link.getAttribute('href'))).toEqual([
+      'https://mp.weixin.qq.com/s/full-flow',
+      'https://editor.csdn.net/md/?articleId=draft-1',
+    ])
   })
 
   it('serializes a local appointment and creates a scheduled submission', async () => {
