@@ -8,6 +8,9 @@ from pathlib import Path
 from fastapi.testclient import TestClient
 
 from social_publisher.api import create_app
+from social_publisher.secrets import MemorySecretStore
+from social_publisher.settings import SettingsService
+from social_publisher.storage import Repository
 
 
 class ApiTests(unittest.TestCase):
@@ -107,6 +110,24 @@ class ApiTests(unittest.TestCase):
         )
         self.assertEqual(response.status_code, 201)
         self.assertEqual(self.dispatched, [])
+
+    def test_wechat_settings_never_return_the_secret(self) -> None:
+        data_dir = Path(self.temp.name) / "settings-app"
+        repository = Repository(data_dir / "publisher.sqlite3")
+        repository.initialize()
+        settings = SettingsService(repository, MemorySecretStore())
+        with TestClient(create_app(data_dir, settings_service=settings)) as client:
+            updated = client.put(
+                "/api/settings/wechat",
+                json={
+                    "app_id": "wx-app",
+                    "app_secret": "top-secret",
+                    "browser_fallback_enabled": True,
+                },
+            )
+            self.assertEqual(updated.status_code, 200)
+            self.assertNotIn("app_secret", updated.json())
+            self.assertTrue(updated.json()["official_configured"])
 
 
 if __name__ == "__main__":

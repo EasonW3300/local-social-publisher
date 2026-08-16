@@ -6,7 +6,7 @@ import tempfile
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 from fastapi import BackgroundTasks, FastAPI, File, Form, HTTPException, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,6 +17,9 @@ from .domain import AssetUsage, Platform, PostDraft
 from .rendering import RendererRegistry
 from .storage import Repository
 from .submissions import DuplicateSubmissionError, SubmissionService
+
+if TYPE_CHECKING:
+    from .settings import SettingsService
 
 
 class PreviewItem(BaseModel):
@@ -41,6 +44,19 @@ class HealthResponse(BaseModel):
     status: str
 
 
+class WeChatSettingsRequest(BaseModel):
+    app_id: str = ""
+    app_secret: str | None = None
+    browser_fallback_enabled: bool = False
+
+
+class WeChatSettingsResponse(BaseModel):
+    app_id: str
+    secret_configured: bool
+    official_configured: bool
+    browser_fallback_enabled: bool
+
+
 DispatchJobs = Callable[[list[str]], None]
 
 
@@ -48,6 +64,7 @@ def create_app(
     data_dir: Path,
     *,
     dispatch_jobs: DispatchJobs | None = None,
+    settings_service: SettingsService | None = None,
 ) -> FastAPI:
     data_dir = Path(data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
@@ -70,6 +87,32 @@ def create_app(
     @app.get("/api/health", response_model=HealthResponse)
     def health() -> HealthResponse:
         return HealthResponse(status="ok")
+
+    if settings_service is not None:
+
+        @app.get("/api/settings/wechat", response_model=WeChatSettingsResponse)
+        def get_wechat_settings() -> WeChatSettingsResponse:
+            current = settings_service.wechat()
+            return WeChatSettingsResponse(
+                app_id=current.app_id,
+                secret_configured=current.secret_configured,
+                official_configured=current.official_configured,
+                browser_fallback_enabled=current.browser_fallback_enabled,
+            )
+
+        @app.put("/api/settings/wechat", response_model=WeChatSettingsResponse)
+        def put_wechat_settings(request: WeChatSettingsRequest) -> WeChatSettingsResponse:
+            current = settings_service.configure_wechat(
+                app_id=request.app_id,
+                app_secret=request.app_secret,
+                browser_fallback_enabled=request.browser_fallback_enabled,
+            )
+            return WeChatSettingsResponse(
+                app_id=current.app_id,
+                secret_configured=current.secret_configured,
+                official_configured=current.official_configured,
+                browser_fallback_enabled=current.browser_fallback_enabled,
+            )
 
     @app.post("/api/previews", response_model=PreviewResponse)
     def preview(

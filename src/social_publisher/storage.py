@@ -181,6 +181,27 @@ class Repository:
                 result.append({"post": dict(post), "jobs": [dict(job) for job in jobs]})
             return result
 
+    def get_setting(self, key: str, default: object = None) -> object:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT value_json FROM settings WHERE key = ?", (key,)
+            ).fetchone()
+        return json.loads(row["value_json"]) if row is not None else default
+
+    def set_setting(self, key: str, value: object) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO settings(key, value_json, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(key) DO UPDATE SET
+                    value_json = excluded.value_json,
+                    updated_at = excluded.updated_at
+                """,
+                (key, json.dumps(value), now),
+            )
+
     def get_job_context(self, job_id: str) -> JobContext | None:
         with self.connect() as connection:
             row = connection.execute(
