@@ -20,6 +20,22 @@ class CreatedPost:
     fingerprint: str
 
 
+@dataclass(frozen=True, slots=True)
+class JobContext:
+    job_id: str
+    post_id: str
+    platform: str
+    status: JobStatus
+    attempts: int
+    max_attempts: int
+    title: str
+    body: str
+    content_type: str
+    image_path: Path
+    image_usage: str
+    scheduled_at: datetime | None
+
+
 class Repository:
     def __init__(self, database_path: Path) -> None:
         self.database_path = Path(database_path)
@@ -145,6 +161,125 @@ class Repository:
                 "asset": dict(asset) if asset else None,
             }
 
+    def get_job_context(self, job_id: str) -> JobContext | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    platform_jobs.id AS job_id,
+                    platform_jobs.post_id,
+                    platform_jobs.platform,
+                    platform_jobs.status,
+                    platform_jobs.attempts,
+                    platform_jobs.max_attempts,
+                    platform_jobs.image_usage,
+                    platform_jobs.scheduled_at,
+                    rendered_contents.title,
+                    rendered_contents.body,
+                    rendered_contents.content_type,
+                    assets.stored_path
+                FROM platform_jobs
+                JOIN rendered_contents ON rendered_contents.job_id = platform_jobs.id
+                JOIN assets ON assets.post_id = platform_jobs.post_id
+                WHERE platform_jobs.id = ?
+                """,
+                (job_id,),
+            ).fetchone()
+        if row is None:
+            return None
+        scheduled_at = datetime.fromisoformat(row["scheduled_at"]) if row["scheduled_at"] else None
+        return JobContext(
+            job_id=row["job_id"],
+            post_id=row["post_id"],
+            platform=row["platform"],
+            status=JobStatus(row["status"]),
+            attempts=row["attempts"],
+            max_attempts=row["max_attempts"],
+            title=row["title"],
+            body=row["body"],
+            content_type=row["content_type"],
+            image_path=Path(row["stored_path"]),
+            image_usage=row["image_usage"],
+            scheduled_at=scheduled_at,
+        )
+
+    def list_runnable_job_ids(self, now: datetime, limit: int = 20) -> list[str]:
+        if now.tzinfo is None:
+            raise ValueError("now must include timezone information")
+        with self.connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT id
+                FROM platform_jobs
+                WHERE status = 'ready'
+                   OR (status = 'scheduled' AND scheduled_at <= ?)
+                ORDER BY COALESCE(scheduled_at, created_at), created_at
+                LIMIT ?
+                """,
+                (now.isoformat(), limit),
+            ).fetchall()
+        return [row["id"] for row in rows]
+
+    def transition_job(
+        self,
+        job_id: str,
+        *,
+        expected: JobStatus,
+        target: JobStatus,
+        attempts: int | None = None,
+        scheduled_at: datetime | None = None,
+        remote_id: str | None = None,
+        result_url: str | None = None,
+        error_code: str | None = None,
+        error_message: str | None = None,
+        event_details: dict[str, object] | None = None,
+    ) -> None:
+        now = datetime.now(timezone.utc).isoformat()
+        values = {
+            "status": target.value,
+            "attempts": attempts,
+            "scheduled_at": scheduled_at.isoformat() if scheduled_at else None,
+            "remote_id": remote_id,
+            "result_url": result_url,
+            "error_code": error_code,
+            "error_message": error_message,
+            "updated_at": now,
+            "id": job_id,
+            "expected": expected.value,
+        }
+        assignments = ["status = :status", "updated_at = :updated_at"]
+        for name in (
+            "attempts",
+            "scheduled_at",
+            "remote_id",
+            "result_url",
+            "error_code",
+            "error_message",
+        ):
+            if values[name] is not None:
+                assignments.append(f"{name} = :{name}")
+
+        with self.connect() as connection:
+            cursor = connection.execute(
+                f"UPDATE platform_jobs SET {', '.join(assignments)} "
+                "WHERE id = :id AND status = :expected",
+                values,
+            )
+            if cursor.rowcount != 1:
+                raise ValueError(
+                    f"job {job_id} is no longer in expected state {expected.value}"
+                )
+            details = {"from": expected.value, "to": target.value}
+            if event_details:
+                details.update(event_details)
+            connection.execute(
+                """
+                INSERT INTO job_events(id, job_id, event_type, details_json, created_at)
+                VALUES (?, ?, 'status_changed', ?, ?)
+                """,
+                (str(uuid.uuid4()), job_id, json.dumps(details), now),
+            )
+
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS posts (
@@ -225,4 +360,3 @@ CREATE TABLE IF NOT EXISTS settings (
     updated_at TEXT NOT NULL
 );
 """
-
