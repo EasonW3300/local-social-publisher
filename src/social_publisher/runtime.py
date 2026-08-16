@@ -77,6 +77,14 @@ class PublisherRuntime:
     def close(self) -> None:
         if self.scheduler.running:
             self.scheduler.shutdown(wait=False)
-        self.executor.shutdown(wait=True, cancel_futures=True)
-        self.csdn_driver.close()
-        self.wechat_driver.close()
+        close_future = self.executor.submit(self._close_browser_drivers)
+        try:
+            close_future.result()
+        finally:
+            self.executor.shutdown(wait=True, cancel_futures=True)
+
+    def _close_browser_drivers(self) -> None:
+        try:
+            self.csdn_driver.close()
+        finally:
+            self.wechat_driver.close()
