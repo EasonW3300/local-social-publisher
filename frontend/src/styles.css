@@ -37,6 +37,9 @@ h1 { font-family: Georgia, 'Songti SC', serif; font-size: clamp(38px, 5vw, 68px)
 .settings-actions { display: flex; flex-direction: column; gap: 7px; }
 .settings-actions button { border: 1px solid #6c685f; background: transparent; color: white; padding: 8px 12px; font-size: 11px; white-space: nowrap; }
 .settings-actions .save-settings { background: var(--orange); border-color: var(--orange); }
+.settings-actions > span { font-size: 10px; text-align: center; padding: 2px 0; }
+.settings-actions .login-ready { color: #91c79f; }
+.settings-actions .login-required { color: #f2a487; }
 
 .workspace { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(340px, .85fr); gap: 24px; align-items: start; }
 .composer, .preview-panel, .history { background: var(--paper); border: 1px solid var(--line); box-shadow: 0 14px 45px rgba(54,44,29,.06); }

@@ -24,8 +24,22 @@ class _Driver:
     def close(self) -> None:
         self.closed_on = threading.current_thread().name
 
+    def is_logged_in(self) -> bool:
+        self.closed_on = threading.current_thread().name
+        return True
+
 
 class RuntimeShutdownTests(unittest.TestCase):
+    def test_login_check_runs_on_the_publisher_thread(self) -> None:
+        runtime = PublisherRuntime.__new__(PublisherRuntime)
+        runtime.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="publisher")
+        runtime.csdn_driver = _Driver()
+        try:
+            self.assertTrue(runtime.is_csdn_logged_in())
+            self.assertTrue(runtime.csdn_driver.closed_on.startswith("publisher"))
+        finally:
+            runtime.executor.shutdown(wait=True)
+
     def test_browser_drivers_close_on_their_executor_thread(self) -> None:
         runtime = PublisherRuntime.__new__(PublisherRuntime)
         runtime.scheduler = _Scheduler()

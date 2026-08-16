@@ -206,6 +206,7 @@ class ApiTests(unittest.TestCase):
                 data_dir,
                 open_csdn_login=lambda: opened.append("csdn"),
                 open_wechat_login=lambda: opened.append("wechat"),
+                check_csdn_login=lambda: True,
             )
         ) as client:
             headers = {
@@ -219,6 +220,9 @@ class ApiTests(unittest.TestCase):
                 client.post("/api/browser/wechat/login", headers=headers).status_code,
                 202,
             )
+            status_response = client.post("/api/browser/csdn/status", headers=headers)
+            self.assertEqual(status_response.status_code, 200)
+            self.assertEqual(status_response.json(), {"logged_in": True})
         self.assertEqual(opened, ["csdn", "wechat"])
 
     def test_built_frontend_can_be_served_from_loopback_app(self) -> None:

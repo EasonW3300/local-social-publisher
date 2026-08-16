@@ -208,4 +208,26 @@ describe('App', () => {
       expect.objectContaining({ method: 'POST' }),
     )
   })
+
+  it('checks and displays the CSDN browser login state', async () => {
+    const user = userEvent.setup()
+    vi.mocked(fetch).mockImplementation(async (input, init) => {
+      const url = String(input)
+      if (url.endsWith('/api/session')) return response({ token: 'local-token' })
+      if (url.endsWith('/api/browser/csdn/status') && init?.method === 'POST') {
+        return response({ logged_in: true })
+      }
+      if (url.endsWith('/api/submissions')) return response({ items: [] })
+      if (url.endsWith('/api/settings/wechat')) {
+        return response({ app_id: '', secret_configured: false, official_configured: false, browser_fallback_enabled: false })
+      }
+      throw new Error(url)
+    })
+
+    render(<App />)
+    await user.click(screen.getByRole('button', { name: '账号设置' }))
+    await user.click(screen.getByRole('button', { name: '检查 CSDN 登录' }))
+
+    expect(await screen.findByText('CSDN 已登录')).toBeInTheDocument()
+  })
 })

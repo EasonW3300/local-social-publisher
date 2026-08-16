@@ -123,3 +123,10 @@ export async function openPlatformLogin(platform: Platform): Promise<void> {
 export async function retryJob(jobId: string): Promise<void> {
   await checked(await writeRequest(`/api/jobs/${jobId}/retry`, { method: 'POST' }))
 }
+
+export async function checkCsdnLogin(): Promise<boolean> {
+  const response = await checked(
+    await writeRequest('/api/browser/csdn/status', { method: 'POST' }),
+  )
+  return (await response.json()).logged_in as boolean
+}

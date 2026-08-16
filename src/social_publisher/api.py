@@ -62,6 +62,7 @@ class WeChatSettingsResponse(BaseModel):
 
 DispatchJobs = Callable[[list[str]], None]
 OpenBrowser = Callable[[], None]
+CheckLogin = Callable[[], bool]
 
 
 def create_app(
@@ -71,6 +72,7 @@ def create_app(
     settings_service: SettingsService | None = None,
     open_csdn_login: OpenBrowser | None = None,
     open_wechat_login: OpenBrowser | None = None,
+    check_csdn_login: CheckLogin | None = None,
     frontend_dir: Path | None = None,
 ) -> FastAPI:
     data_dir = Path(data_dir)
@@ -150,6 +152,18 @@ def create_app(
         def start_wechat_login(background_tasks: BackgroundTasks) -> dict[str, str]:
             background_tasks.add_task(open_wechat_login)
             return {"status": "opening"}
+
+    if check_csdn_login is not None:
+
+        @app.post("/api/browser/csdn/status")
+        def csdn_login_status() -> dict[str, bool]:
+            try:
+                return {"logged_in": check_csdn_login()}
+            except Exception as error:
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail=f"unable to inspect CSDN login: {error}",
+                ) from error
 
     @app.post("/api/previews", response_model=PreviewResponse)
     def preview(

@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 
 import {
   ApiError,
+  checkCsdnLogin,
   getWeChatSettings,
   listSubmissions,
   openPlatformLogin,
@@ -56,6 +57,7 @@ export default function App() {
   const [wechatAppId, setWechatAppId] = useState('')
   const [wechatSecret, setWechatSecret] = useState('')
   const [browserFallback, setBrowserFallback] = useState(false)
+  const [csdnLoginState, setCsdnLoginState] = useState<'unknown' | 'checking' | 'ready' | 'login_required'>('unknown')
 
   const values = useMemo<PublishForm | null>(() => {
     if (!image) return null
@@ -186,6 +188,16 @@ export default function App() {
     }
   }
 
+  async function inspectCsdnLogin() {
+    setCsdnLoginState('checking')
+    try {
+      setCsdnLoginState(await checkCsdnLogin() ? 'ready' : 'login_required')
+    } catch (error) {
+      setCsdnLoginState('unknown')
+      setMessage(error instanceof Error ? error.message : '无法检查 CSDN 登录状态')
+    }
+  }
+
   return (
     <main>
       <header className="masthead">
@@ -217,6 +229,9 @@ export default function App() {
           <div className="settings-actions">
             <button type="button" onClick={() => void openLogin('wechat')}>打开微信登录</button>
             <button type="button" onClick={() => void openLogin('csdn')}>打开 CSDN 登录</button>
+            <button type="button" onClick={() => void inspectCsdnLogin()}>{csdnLoginState === 'checking' ? '检查中…' : '检查 CSDN 登录'}</button>
+            {csdnLoginState === 'ready' && <span className="login-ready">CSDN 已登录</span>}
+            {csdnLoginState === 'login_required' && <span className="login-required">CSDN 尚未登录</span>}
             <button className="save-settings" type="submit">安全保存</button>
           </div>
         </form>

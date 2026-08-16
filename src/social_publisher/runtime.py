@@ -71,6 +71,9 @@ class PublisherRuntime:
     def open_wechat_login(self) -> None:
         self.executor.submit(self.wechat_driver.open_login)
 
+    def is_csdn_logged_in(self) -> bool:
+        return bool(self.executor.submit(self.csdn_driver.is_logged_in).result(timeout=30))
+
     def _tick(self) -> None:
         self.executor.submit(self.scheduler_core.recover_and_run)
 

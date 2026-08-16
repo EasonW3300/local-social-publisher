@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from social_publisher.adapters.browser import (
     BrowserPublishReceipt,
@@ -9,7 +10,7 @@ from social_publisher.adapters.browser import (
     LoginRequired,
     UserActionRequired,
 )
-from social_publisher.adapters.csdn import CsdnAdapter
+from social_publisher.adapters.csdn import CsdnAdapter, CsdnPlaywrightDriver
 from social_publisher.adapters.wechat_browser import WeChatBrowserFallbackAdapter
 from social_publisher.domain import JobStatus
 from social_publisher.storage import JobContext
@@ -56,6 +57,15 @@ def job(platform: str) -> JobContext:
 
 
 class BrowserAdapterTests(unittest.TestCase):
+    def test_csdn_login_status_uses_the_resulting_editor_url(self) -> None:
+        driver = CsdnPlaywrightDriver(Path("profile"))
+        driver._page = lambda _url: SimpleNamespace(url="https://editor.csdn.net/md/")
+        self.assertTrue(driver.is_logged_in())
+        driver._page = lambda _url: SimpleNamespace(
+            url="https://passport.csdn.net/login?code=required"
+        )
+        self.assertFalse(driver.is_logged_in())
+
     def test_csdn_draft_is_success_for_the_csdn_delivery_contract(self) -> None:
         adapter = CsdnAdapter(
             FakeCsdnDriver(BrowserPublishReceipt("123", "https://editor.csdn.net/md/123"))
